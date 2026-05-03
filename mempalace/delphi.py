@@ -508,14 +508,14 @@ class DelphiDB:
         rounds = self.list_rounds(session_id)
         closed_rounds = [r for r in rounds if r["status"] == "closed"]
         if not closed_rounds:
-            return {"items": [], "all_consensus": False}
+            return {"item_stats": [], "all_consensus": False}
 
         last_round = closed_rounds[-1]
         stats = self.round_statistics(session_id, last_round["id"])
         all_consensus = bool(stats) and all(s["consensus"] for s in stats)
         return {
             "as_of_round": last_round["round_number"],
-            "items": stats,
+            "item_stats": stats,
             "all_consensus": all_consensus,
         }
 

@@ -312,7 +312,7 @@ class TestStatistics:
 
     def test_session_consensus_summary_no_closed_rounds(self, db, session_id):
         summary = db.session_consensus_summary(session_id)
-        assert summary["items"] == []
+        assert summary["item_stats"] == []
         assert summary["all_consensus"] is False
 
     def test_session_consensus_summary_all_agree(self, db, session_id):
@@ -323,7 +323,7 @@ class TestStatistics:
         db.close_round(session_id)
         summary = db.session_consensus_summary(session_id)
         assert summary["all_consensus"] is True
-        assert summary["items"][0]["consensus"] is True
+        assert summary["item_stats"][0]["consensus"] is True
 
     def test_session_consensus_summary_uses_last_round(self, db, session_id):
         # Round 1: no consensus

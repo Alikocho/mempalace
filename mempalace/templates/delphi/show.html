@@ -1,0 +1,297 @@
+{% extends "base.html" %}
+{% block title %}{{ session.title }}{% endblock %}
+{% block content %}
+
+<div class="d-flex align-items-center mb-3 gap-2 small text-muted">
+  <a href="{{ url_for('delphi_list') }}" class="text-muted text-decoration-none">&larr; Sessions</a>
+  <span>/</span><span>{{ session.id }}</span>
+</div>
+
+<div class="row g-4">
+
+  {# ---- Left column ---- #}
+  <div class="col-lg-8">
+
+    {# session header #}
+    <div class="card mb-4">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <h4 class="mb-1">{{ session.title }}</h4>
+            <p class="text-muted mb-1"><em>{{ session.question }}</em></p>
+            {% if session.description %}
+            <p class="text-muted small mb-1">{{ session.description }}</p>
+            {% endif %}
+            <code class="small text-muted">{{ session.id }}</code>
+          </div>
+          <div class="text-end">
+            <span class="badge bg-secondary">{{ session.status }}</span><br>
+            <span class="small text-muted">Round {{ session.current_round }}</span><br>
+            <span class="small text-muted">IQR ≤ {{ session.consensus_threshold }}</span>
+          </div>
+        </div>
+
+        {# consensus summary #}
+        {% if consensus.item_stats %}
+        <div class="mt-3 p-2 rounded {% if consensus.all_consensus %}bg-success bg-opacity-10 border border-success{% else %}bg-light{% endif %}">
+          {% if consensus.all_consensus %}
+          <span class="consensus-yes">&#10003; Consensus reached (Round {{ consensus.as_of_round }})</span>
+          {% else %}
+          <span class="text-muted small">
+            Convergence: {{ consensus.item_stats | selectattr('consensus') | list | length }}/{{ consensus.item_stats | length }} items
+            (as of Round {{ consensus.as_of_round }})
+          </span>
+          {% endif %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    {# round controls #}
+    <div class="card mb-4">
+      <div class="card-header fw-medium">Round management</div>
+      <div class="card-body">
+        {% if current_round %}
+        <div class="alert alert-info py-2 mb-3">
+          <strong>Round {{ current_round.round_number }} is open</strong>
+          ({{ current_round.id }})
+          {% if current_round.prompt %} &mdash; {{ current_round.prompt }}{% endif %}
+        </div>
+        <form method="post" action="{{ url_for('delphi_round_close', session_id=session.id) }}"
+              class="row g-2 align-items-end">
+          <div class="col">
+            <input type="text" class="form-control form-control-sm" name="summary"
+                   placeholder="Round summary / key themes (optional)">
+          </div>
+          <div class="col-auto">
+            <button type="submit" class="btn btn-sm btn-warning">Close round</button>
+          </div>
+        </form>
+        {% else %}
+        <form method="post" action="{{ url_for('delphi_round_open', session_id=session.id) }}"
+              class="row g-2 align-items-end">
+          <div class="col">
+            <input type="text" class="form-control form-control-sm" name="prompt"
+                   placeholder="Optional prompt for participants (e.g. Rate each item 1–9)">
+          </div>
+          <div class="col-auto">
+            <button type="submit" class="btn btn-sm btn-success">
+              Open Round {{ session.current_round + 1 }}
+            </button>
+          </div>
+        </form>
+        {% endif %}
+
+        {% if rounds %}
+        <div class="mt-3">
+          <div class="small text-muted mb-1">Round history</div>
+          <ul class="list-unstyled mb-0">
+          {% for r in rounds %}
+          <li class="small {% if not loop.last %}border-bottom pb-1 mb-1{% endif %}">
+            <strong>Round {{ r.round_number }}</strong>
+            <span class="badge {% if r.status == 'open' %}bg-info{% else %}bg-light text-dark border{% endif %} ms-1">
+              {{ r.status }}
+            </span>
+            {% if r.prompt %}<span class="text-muted"> — {{ r.prompt }}</span>{% endif %}
+            {% if r.summary %}<div class="text-muted fst-italic ms-2">&#8220;{{ r.summary }}&#8221;</div>{% endif %}
+          </li>
+          {% endfor %}
+          </ul>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    {# text responses (current round) #}
+    {% if current_round %}
+    <div class="card mb-4">
+      <div class="card-header fw-medium">
+        Text responses &mdash; Round {{ current_round.round_number }}
+        <span class="badge bg-light text-dark border ms-1">{{ responses | length }}</span>
+      </div>
+      <div class="card-body">
+        {% if responses %}
+        <ul class="list-group list-group-flush mb-3">
+          {% for r in responses %}
+          <li class="list-group-item px-0 small">
+            <span class="text-muted">{{ r.respondent }}</span>
+            {% if r.score %}<span class="badge bg-secondary ms-1">{{ r.score }}/9</span>{% endif %}
+            <div>{{ r.response_text }}</div>
+          </li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+        <form method="post" action="{{ url_for('delphi_respond', session_id=session.id) }}" class="row g-2">
+          <div class="col-12">
+            <textarea class="form-control form-control-sm" name="text" rows="2"
+                      placeholder="Add your response…" required></textarea>
+          </div>
+          <div class="col-auto">
+            <input type="text" class="form-control form-control-sm" name="respondent"
+                   placeholder="Name (optional)" style="width:140px">
+          </div>
+          <div class="col-auto">
+            <input type="number" class="form-control form-control-sm" name="score"
+                   placeholder="{{ rating_min }}–{{ rating_max }}" min="{{ rating_min }}" max="{{ rating_max }}"
+                   style="width:80px">
+          </div>
+          <div class="col-auto">
+            <button type="submit" class="btn btn-sm btn-outline-secondary">Submit</button>
+          </div>
+        </form>
+        {# async import #}
+        <form method="post" action="{{ url_for('delphi_import', session_id=session.id) }}"
+              enctype="multipart/form-data" class="row g-2 mt-1 align-items-center">
+          <div class="col-auto">
+            <input type="file" class="form-control form-control-sm" name="responses_json" accept=".json">
+          </div>
+          <div class="col-auto">
+            <button type="submit" class="btn btn-sm btn-outline-secondary">Import JSON</button>
+          </div>
+          <div class="col text-muted small">Batch import responses/ratings from a JSON file</div>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+
+    {# items + ratings #}
+    <div class="card mb-4">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span class="fw-medium">Propositions (items)
+          <span class="badge bg-light text-dark border ms-1">{{ items | length }}</span>
+        </span>
+      </div>
+      <div class="card-body">
+        {# add item form #}
+        {% if current_round %}
+        <form method="post" action="{{ url_for('delphi_item', session_id=session.id) }}"
+              class="row g-2 align-items-end mb-3">
+          <div class="col">
+            <input type="text" class="form-control form-control-sm" name="text"
+                   placeholder="Add a proposition for rating, e.g. 'Adopt tiered pricing'">
+          </div>
+          <div class="col-auto">
+            <button type="submit" class="btn btn-sm btn-outline-success">Add item</button>
+          </div>
+        </form>
+        {% endif %}
+
+        {% if items %}
+        {# ratings form #}
+        {% if current_round %}
+        <form method="post" action="{{ url_for('delphi_rate', session_id=session.id) }}">
+          <div class="mb-2 row g-2 align-items-center">
+            <div class="col-auto small text-muted">Your name:</div>
+            <div class="col-auto">
+              <input type="text" class="form-control form-control-sm" name="respondent"
+                     placeholder="anonymous" style="width:140px">
+            </div>
+          </div>
+          <table class="table table-sm table-hover">
+            <thead class="table-light">
+              <tr>
+                <th>Proposition</th>
+                <th style="width:90px">Rating ({{ rating_min }}–{{ rating_max }})</th>
+                <th>Rationale</th>
+                {% if stats_by_item %}<th>IQR</th><th>Consensus</th>{% endif %}
+              </tr>
+            </thead>
+            <tbody>
+            {% for item in items %}
+            {% set s = stats_by_item.get(item.id) %}
+            <tr>
+              <td class="small">
+                <code class="small text-muted me-1">{{ item.id }}</code>{{ item.text }}
+              </td>
+              <td>
+                <input type="number" class="form-control form-control-sm"
+                       name="rating_{{ item.id }}" min="{{ rating_min }}" max="{{ rating_max }}" step="1"
+                       placeholder="—"
+                       {% if s and s.median %} value="{{ s.median | int }}"{% endif %}>
+              </td>
+              <td>
+                <input type="text" class="form-control form-control-sm"
+                       name="rationale_{{ item.id }}" placeholder="Optional reason">
+              </td>
+              {% if stats_by_item %}
+              <td class="small">
+                {% if s and s.iqr is not none %}{{ s.iqr }}{% else %}—{% endif %}
+              </td>
+              <td class="small">
+                {% if s %}
+                  {% if s.consensus %}<span class="consensus-yes">Yes ✓</span>
+                  {% else %}<span class="consensus-no">No</span>{% endif %}
+                  {% if s.median is not none %}<br><span class="text-muted">med {{ s.median }}</span>{% endif %}
+                {% else %}—{% endif %}
+              </td>
+              {% endif %}
+            </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+          <button type="submit" class="btn btn-sm btn-success">Submit ratings</button>
+        </form>
+        {% else %}
+        {# read-only view when no open round #}
+        <table class="table table-sm">
+          <thead class="table-light">
+            <tr><th>Proposition</th><th>Median</th><th>IQR</th><th>Consensus</th><th>Agreement</th></tr>
+          </thead>
+          <tbody>
+          {% for item in items %}
+          {% set s = stats_by_item.get(item.id) %}
+          <tr>
+            <td class="small">{{ item.text }}</td>
+            <td>{% if s and s.median is not none %}{{ s.median }}{% else %}—{% endif %}</td>
+            <td>{% if s and s.iqr is not none %}{{ s.iqr }}{% else %}—{% endif %}</td>
+            <td>
+              {% if s %}
+                {% if s.consensus %}<span class="consensus-yes">Yes ✓</span>
+                {% else %}<span class="consensus-no">No</span>{% endif %}
+              {% else %}—{% endif %}
+            </td>
+            <td class="small text-muted">
+              {% if s %}{{ s.agreement | title }}{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+        {% endif %}
+        {% else %}
+        <p class="text-muted small mb-0">No items yet.
+          {% if current_round %}Add propositions above to start collecting ratings.{% endif %}
+        </p>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>{# end col-lg-8 #}
+
+  {# ---- Right column: notes ---- #}
+  <div class="col-lg-4">
+    <div class="card">
+      <div class="card-header fw-medium">Notes <span class="badge bg-light text-dark border ms-1">{{ notes | length }}</span></div>
+      <div class="card-body p-2">
+        {% if notes %}
+        <ul class="list-unstyled mb-2">
+          {% for n in notes %}
+          <li class="border-bottom pb-2 mb-2 small">
+            <span class="badge bg-light text-dark me-1">{{ n.source_type }}</span>
+            {{ n.content | truncate(200) }}
+            <div class="text-muted" style="font-size:.7rem">{{ n.created_at[:16] }}</div>
+          </li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+        <form method="post" action="{{ url_for('delphi_note', session_id=session.id) }}">
+          <textarea class="form-control form-control-sm mb-2" name="content" rows="2"
+                    placeholder="Add a note…"></textarea>
+          <button type="submit" class="btn btn-sm btn-outline-secondary w-100">Add note</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
