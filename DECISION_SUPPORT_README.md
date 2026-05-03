@@ -73,7 +73,7 @@ Start the development server:
 ```bash
 decision-web
 # or
-python -m mempalace.web
+python -m decisionsupport.web
 ```
 
 The app binds to `http://localhost:5000` by default. Set `PORT` to change the port.
@@ -94,7 +94,7 @@ The app binds to `http://localhost:5000` by default. Set `PORT` to change the po
 
 ### Framework toggle
 
-The navbar shows the active framework and a **Toggle** button. Clicking it switches the active framework and persists the choice to `~/.mempalace/decision_framework`. The CLI and web interface share the same toggle state.
+The navbar shows the active framework and a **Toggle** button. Clicking it switches the active framework and persists the choice to `~/.decisionsupport/decision_framework`. The CLI and web interface share the same toggle state.
 
 ---
 
@@ -274,18 +274,18 @@ Import via web: session detail page → "Import responses" section
 
 ## Data Storage
 
-All data is stored in SQLite at `~/.mempalace/` by default.
+All data is stored in SQLite at `~/.decisionsupport/` by default.
 
 | File | Contents |
 |---|---|
-| `~/.mempalace/cynefin.db` | Decisions, responses, notes, actions |
-| `~/.mempalace/delphi.db` | Sessions, rounds, responses, items, ratings, notes |
-| `~/.mempalace/decision_framework` | Active framework (`cynefin` or `delphi`) |
+| `~/.decisionsupport/cynefin.db` | Decisions, responses, notes, actions |
+| `~/.decisionsupport/delphi.db` | Sessions, rounds, responses, items, ratings, notes |
+| `~/.decisionsupport/decision_framework` | Active framework (`cynefin` or `delphi`) |
 
-Override the data directory via the `MEMPALACE_DATA_DIR` environment variable:
+Override the data directory via the `DECISION_SUPPORT_DATA_DIR` environment variable:
 
 ```bash
-MEMPALACE_DATA_DIR=/data decision-web
+DECISION_SUPPORT_DATA_DIR=/data decision-web
 ```
 
 Both databases use WAL mode for safe concurrent reads/writes.
@@ -321,7 +321,7 @@ notes       id, session_id, content, source_type, created_at
 1. Push the repository to GitHub.
 2. Create a new Railway project and connect the GitHub repo.
 3. Add a **persistent volume** mounted at `/data`.
-4. Set the environment variable `MEMPALACE_DATA_DIR=/data` in Railway settings.
+4. Set the environment variable `DECISION_SUPPORT_DATA_DIR=/data` in Railway settings.
 5. Railway picks up `railway.toml` automatically — no further configuration needed.
 
 ```toml
@@ -330,7 +330,7 @@ notes       id, session_id, content, source_type, created_at
 builder = "nixpacks"
 
 [deploy]
-startCommand = "gunicorn mempalace.web:app --bind 0.0.0.0:$PORT --workers 2 --timeout 30"
+startCommand = "gunicorn decisionsupport.web:app --bind 0.0.0.0:$PORT --workers 2 --timeout 30"
 healthcheckPath = "/health"
 healthcheckTimeout = 30
 restartPolicyType = "ON_FAILURE"
@@ -343,7 +343,7 @@ The `Procfile` provides the same start command for Heroku-compatible platforms.
 
 | Variable | Default | Description |
 |---|---|---|
-| `MEMPALACE_DATA_DIR` | `~/.mempalace` | Path for SQLite databases |
+| `DECISION_SUPPORT_DATA_DIR` | `~/.decisionsupport` | Path for SQLite databases |
 | `SECRET_KEY` | `dev-change-me-in-production` | Flask session secret — **change this** |
 | `PORT` | `5000` | Port to bind (set automatically by Railway) |
 | `FLASK_DEBUG` | `false` | Enable Flask debug mode |
@@ -360,7 +360,7 @@ python -m pytest tests/test_cynefin.py tests/test_delphi.py tests/test_decision.
 python -m pytest tests/ --ignore=tests/benchmarks -v
 
 # With coverage
-python -m pytest tests/ --ignore=tests/benchmarks --cov=mempalace --cov-report=term-missing
+python -m pytest tests/ --ignore=tests/benchmarks --cov=decisionsupport --cov-report=term-missing
 ```
 
 Test counts: 46 Cynefin · 54 Delphi · 17 Decision · 37 Web = **154 decision-tool tests**.
@@ -370,7 +370,7 @@ Test counts: 46 Cynefin · 54 Delphi · 17 Decision · 37 Web = **154 decision-t
 ## File Reference
 
 ```
-mempalace/
+decisionsupport/
 ├── cynefin.py          Core Cynefin module — DB, questions, classification
 ├── cynefin_cli.py      cynefin CLI entry point
 ├── delphi.py           Core Delphi module — DB, stats, consensus
