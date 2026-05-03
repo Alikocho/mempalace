@@ -92,6 +92,59 @@ def index():
     return render_template("index.html", decisions=decisions, sessions=sessions)
 
 
+@app.route("/results")
+def results():
+    import datetime
+
+    cdb = _cdb()
+    ddb = _ddb()
+
+    # --- Cynefin ---
+    all_decisions = cdb.list_decisions()
+    domain_counts = {"clear": 0, "complicated": 0, "complex": 0, "chaotic": 0, "disorder": 0}
+    status_counts = {"open": 0, "decided": 0, "deferred": 0}
+    decisions_detail = []
+    for d in all_decisions:
+        domain = d["domain"] or "disorder"
+        domain_counts[domain] = domain_counts.get(domain, 0) + 1
+        status_counts[d["status"]] = status_counts.get(d["status"], 0) + 1
+        actions = cdb.get_actions(d["id"])
+        decisions_detail.append({
+            "decision": d,
+            "actions": actions,
+            "pending_actions": sum(1 for a in actions if not a["resolved_at"]),
+        })
+
+    # --- Delphi ---
+    all_sessions = ddb.list_sessions()
+    sessions_detail = []
+    consensus_count = 0
+    for s in all_sessions:
+        summary = ddb.session_consensus_summary(s["id"])
+        rounds = ddb.list_rounds(s["id"])
+        if summary["all_consensus"]:
+            consensus_count += 1
+        sessions_detail.append({
+            "session": s,
+            "summary": summary,
+            "rounds": rounds,
+            "closed_rounds": sum(1 for r in rounds if r["status"] == "closed"),
+        })
+
+    return render_template(
+        "results.html",
+        decisions=decisions_detail,
+        domain_counts=domain_counts,
+        status_counts=status_counts,
+        sessions=sessions_detail,
+        consensus_count=consensus_count,
+        total_decisions=len(all_decisions),
+        total_sessions=len(all_sessions),
+        domain_info=DOMAIN_INFO,
+        generated_at=datetime.datetime.now().strftime("%d %b %Y, %H:%M"),
+    )
+
+
 @app.route("/toggle", methods=["POST"])
 def toggle_framework():
     new_fw = toggle(config_path=_FRAMEWORK_CONFIG)

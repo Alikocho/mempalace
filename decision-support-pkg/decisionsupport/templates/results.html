@@ -1,0 +1,271 @@
+{% extends "base.html" %}
+{% block title %}Results Dashboard{% endblock %}
+
+{% block content %}
+<style>
+  /* ── Print / PDF styles ───────────────────────────── */
+  @media print {
+    .no-print { display: none !important; }
+    .navbar   { display: none !important; }
+    body      { background: #fff !important; }
+    .card     { border: 1px solid #ccc !important; box-shadow: none !important; break-inside: avoid; }
+    .page-break { page-break-before: always; }
+    a         { color: inherit !important; text-decoration: none !important; }
+    .badge    { border: 1px solid #999; }
+  }
+
+  /* ── Domain colours ──────────────────────────────── */
+  .bar-clear       { background: #198754; }
+  .bar-complicated { background: #0d6efd; }
+  .bar-complex     { background: #fd7e14; }
+  .bar-chaotic     { background: #dc3545; }
+  .bar-disorder    { background: #6c757d; }
+
+  .dot-clear       { background: #198754; width:12px; height:12px; border-radius:50%; display:inline-block; }
+  .dot-complicated { background: #0d6efd; width:12px; height:12px; border-radius:50%; display:inline-block; }
+  .dot-complex     { background: #fd7e14; width:12px; height:12px; border-radius:50%; display:inline-block; }
+  .dot-chaotic     { background: #dc3545; width:12px; height:12px; border-radius:50%; display:inline-block; }
+  .dot-disorder    { background: #6c757d; width:12px; height:12px; border-radius:50%; display:inline-block; }
+
+  .section-title { border-left: 4px solid #0d6efd; padding-left: .6rem; margin-bottom: 1.2rem; }
+  .stat-box { text-align:center; padding: 1rem; border-radius: .5rem; background: #f8f9fa; border: 1px solid #e3e6ea; }
+  .stat-box .num { font-size: 2rem; font-weight: 700; line-height: 1; }
+  .stat-box .lbl { font-size: .75rem; color: #6c757d; margin-top: .25rem; }
+</style>
+
+{# ── Header ───────────────────────────────────────── #}
+<div class="d-flex align-items-start justify-content-between mb-4">
+  <div>
+    <h2 class="mb-0">Results Dashboard</h2>
+    <small class="text-muted">Generated {{ generated_at }}</small>
+  </div>
+  <button class="btn btn-outline-secondary no-print" onclick="window.print()">
+    &#128438; Save as PDF
+  </button>
+</div>
+
+{# ── Summary strip ────────────────────────────────── #}
+<div class="row g-3 mb-5">
+  <div class="col-6 col-md-3">
+    <div class="stat-box">
+      <div class="num">{{ total_decisions }}</div>
+      <div class="lbl">Decisions</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-box">
+      <div class="num">{{ status_counts.decided }}</div>
+      <div class="lbl">Decided</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-box">
+      <div class="num">{{ total_sessions }}</div>
+      <div class="lbl">Delphi Sessions</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-box">
+      <div class="num">{{ consensus_count }}</div>
+      <div class="lbl">Consensus Reached</div>
+    </div>
+  </div>
+</div>
+
+{# ══════════════════════════════════════════════════════
+   CYNEFIN
+══════════════════════════════════════════════════════ #}
+<h4 class="section-title">Cynefin Decisions</h4>
+
+{# Domain distribution bars #}
+{% set total = total_decisions if total_decisions > 0 else 1 %}
+<div class="card mb-4">
+  <div class="card-header fw-semibold">Domain Distribution</div>
+  <div class="card-body">
+    {% for domain, count in domain_counts.items() %}
+    {% if count > 0 %}
+    <div class="mb-2">
+      <div class="d-flex justify-content-between mb-1">
+        <span class="d-flex align-items-center gap-2">
+          <span class="dot-{{ domain }}"></span>
+          <strong>{{ domain | title }}</strong>
+          {% if domain != 'disorder' and domain_info.get(domain) %}
+            <small class="text-muted d-none d-md-inline">— {{ domain_info[domain].sense_act }}</small>
+          {% endif %}
+        </span>
+        <span class="badge bg-secondary">{{ count }}</span>
+      </div>
+      <div style="height:10px; background:#e9ecef; border-radius:5px;">
+        <div class="bar-{{ domain }}" style="height:10px; border-radius:5px; width:{{ ((count / total) * 100) | round(1) }}%"></div>
+      </div>
+    </div>
+    {% endif %}
+    {% endfor %}
+    {% if total_decisions == 0 %}
+    <p class="text-muted mb-0">No decisions yet.</p>
+    {% endif %}
+  </div>
+</div>
+
+{# Status summary #}
+<div class="row g-3 mb-4">
+  {% for st, label in [("open","Open"), ("decided","Decided"), ("deferred","Deferred")] %}
+  <div class="col-4">
+    <div class="stat-box">
+      <div class="num">{{ status_counts[st] }}</div>
+      <div class="lbl">{{ label }}</div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+{# Decision list #}
+{% if decisions %}
+<div class="mb-5">
+  {% for item in decisions %}
+  {% set d = item.decision %}
+  <div class="card mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <span class="fw-semibold">{{ d.title }}</span>
+      <div class="d-flex gap-2">
+        {% if d.domain %}
+        <span class="badge domain-{{ d.domain }}">{{ d.domain | title }}</span>
+        {% else %}
+        <span class="badge bg-secondary">Unclassified</span>
+        {% endif %}
+        <span class="badge bg-light text-dark border">{{ d.status | title }}</span>
+      </div>
+    </div>
+    <div class="card-body">
+      {% if d.description %}
+      <p class="text-muted small mb-2">{{ d.description }}</p>
+      {% endif %}
+
+      {% if d.domain and domain_info.get(d.domain) %}
+      <p class="small mb-2">
+        <strong>Approach:</strong> {{ domain_info[d.domain].sense_act }} —
+        {{ domain_info[d.domain].description }}
+      </p>
+      {% endif %}
+
+      {% if item.actions %}
+      <div class="mt-2">
+        <strong class="small">Actions</strong>
+        <ul class="mb-0 small mt-1">
+          {% for a in item.actions %}
+          <li class="{% if a.resolved_at %}text-muted{% endif %}">
+            {{ a.action_text }}
+            {% if a.resolved_at %}<span class="badge bg-success ms-1">Done</span>{% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+
+      <div class="mt-2 small text-muted">
+        Created {{ d.created_at[:10] }}
+        {% if item.pending_actions > 0 %}
+        · <span class="text-warning fw-semibold">{{ item.pending_actions }} action{{ 's' if item.pending_actions != 1 }} pending</span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<p class="text-muted mb-5">No decisions recorded yet.</p>
+{% endif %}
+
+{# ══════════════════════════════════════════════════════
+   DELPHI
+══════════════════════════════════════════════════════ #}
+<div class="page-break"></div>
+<h4 class="section-title">Delphi Sessions</h4>
+
+{% if sessions %}
+{% for item in sessions %}
+{% set s = item.session %}
+{% set summary = item.summary %}
+<div class="card mb-4">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span class="fw-semibold">{{ s.title }}</span>
+    <div class="d-flex gap-2">
+      {% if summary.all_consensus %}
+      <span class="badge bg-success">Consensus Reached</span>
+      {% elif item.closed_rounds > 0 %}
+      <span class="badge bg-warning text-dark">No Consensus</span>
+      {% else %}
+      <span class="badge bg-secondary">In Progress</span>
+      {% endif %}
+      <span class="badge bg-light text-dark border">{{ s.status | title }}</span>
+    </div>
+  </div>
+  <div class="card-body">
+    <p class="mb-2"><strong>Question:</strong> {{ s.question }}</p>
+
+    <div class="row g-2 mb-3">
+      <div class="col-4">
+        <div class="stat-box py-2">
+          <div class="num" style="font-size:1.4rem">{{ item.rounds | length }}</div>
+          <div class="lbl">Rounds Total</div>
+        </div>
+      </div>
+      <div class="col-4">
+        <div class="stat-box py-2">
+          <div class="num" style="font-size:1.4rem">{{ item.closed_rounds }}</div>
+          <div class="lbl">Rounds Closed</div>
+        </div>
+      </div>
+      <div class="col-4">
+        <div class="stat-box py-2">
+          <div class="num" style="font-size:1.4rem">{{ summary.item_stats | length }}</div>
+          <div class="lbl">Items Rated</div>
+        </div>
+      </div>
+    </div>
+
+    {% if summary.item_stats %}
+    <strong class="small">Item Ratings (Round {{ summary.as_of_round }})</strong>
+    <table class="table table-sm table-bordered mt-2 small">
+      <thead class="table-light">
+        <tr>
+          <th>Item</th>
+          <th class="text-center">Median</th>
+          <th class="text-center">IQR</th>
+          <th class="text-center">Responses</th>
+          <th class="text-center">Consensus</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for stat in summary.item_stats | sort(attribute='median', reverse=True) %}
+        <tr>
+          <td>{{ stat.text }}</td>
+          <td class="text-center fw-semibold">{{ stat.median }}</td>
+          <td class="text-center">{{ stat.iqr }}</td>
+          <td class="text-center">{{ stat.n }}</td>
+          <td class="text-center">
+            {% if stat.consensus %}
+            <span class="consensus-yes">&#10003; Yes</span>
+            {% else %}
+            <span class="consensus-no">&#10005; No</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% elif item.closed_rounds == 0 %}
+    <p class="text-muted small mb-0">No rounds closed yet — ratings not available.</p>
+    {% else %}
+    <p class="text-muted small mb-0">No items rated.</p>
+    {% endif %}
+
+    <div class="mt-2 small text-muted">Created {{ s.created_at[:10] }}</div>
+  </div>
+</div>
+{% endfor %}
+{% else %}
+<p class="text-muted">No Delphi sessions recorded yet.</p>
+{% endif %}
+
+{% endblock %}
