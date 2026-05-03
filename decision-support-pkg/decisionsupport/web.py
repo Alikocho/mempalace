@@ -16,7 +16,10 @@ import os
 import tempfile
 from pathlib import Path
 
+import traceback
+
 from flask import Flask, flash, redirect, render_template, request, url_for
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from .cynefin import (
     DOMAIN_INFO,
@@ -42,6 +45,12 @@ _FRAMEWORK_CONFIG = DATA_DIR / "decision_framework"
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-change-me-in-production")
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+
+
+@app.errorhandler(500)
+def _internal_error(e):
+    return f"<pre>{traceback.format_exc()}</pre>", 500
 
 
 def _cdb() -> CynefinDB:
