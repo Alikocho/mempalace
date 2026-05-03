@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}New Delphi Session{% endblock %}
+{% block content %}
+
+<div class="row justify-content-center">
+  <div class="col-lg-7">
+    <div class="d-flex align-items-center mb-4 gap-2 small text-muted">
+      <a href="{{ url_for('delphi_list') }}" class="text-muted text-decoration-none">&larr; Sessions</a>
+      <span>/</span><span>New</span>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h5 class="mb-0"><span class="badge bg-success me-2">Delphi</span>New session</h5>
+      </div>
+      <div class="card-body">
+        <form method="post">
+          <div class="mb-3">
+            <label for="title" class="form-label fw-medium">Title <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" id="title" name="title"
+                   placeholder="e.g. Q3 Pricing Strategy" autofocus required>
+          </div>
+          <div class="mb-3">
+            <label for="question" class="form-label fw-medium">Central question <span class="text-danger">*</span></label>
+            <textarea class="form-control" id="question" name="question" rows="2" required
+                      placeholder="e.g. What pricing model should we adopt for Q3?"></textarea>
+            <div class="form-text">The specific question the expert panel will converge on.</div>
+          </div>
+          <div class="mb-3">
+            <label for="description" class="form-label fw-medium">Context <span class="text-muted small">(optional)</span></label>
+            <textarea class="form-control" id="description" name="description" rows="2"
+                      placeholder="Background, constraints, panel composition…"></textarea>
+          </div>
+          <div class="mb-4">
+            <label for="threshold" class="form-label fw-medium">Consensus threshold (IQR ≤)</label>
+            <input type="number" class="form-control" id="threshold" name="threshold"
+                   value="{{ default_threshold }}" min="0.5" max="4" step="0.5" style="max-width:120px">
+            <div class="form-text">
+              Ratings are on a 1–9 scale. An IQR ≤ {{ default_threshold }} means consensus.
+              Lower = stricter agreement required.
+            </div>
+          </div>
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-success">Create &rarr;</button>
+            <a href="{{ url_for('delphi_list') }}" class="btn btn-outline-secondary">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="card mt-3 border-0 bg-light">
+      <div class="card-body small text-muted">
+        <strong>Delphi workflow:</strong>
+        Open Round 1 → collect open-ended expert responses →
+        close round → add propositions to rate →
+        open Round 2 → experts rate 1–9 →
+        close round → check IQR convergence →
+        repeat until consensus.
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
