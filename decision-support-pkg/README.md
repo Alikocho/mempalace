@@ -166,7 +166,6 @@ The app binds to `http://localhost:5000` by default. Set `PORT` to change the po
 | URL | Description |
 |---|---|
 | `/` | Dashboard — recent items across all frameworks |
-| `/results` | Results dashboard — exportable PDF summary of all sessions |
 | **Cynefin** | |
 | `/cynefin/` | List decisions (filter by status, show archived) |
 | `/cynefin/new` | Create a decision |
@@ -192,6 +191,8 @@ The app binds to `http://localhost:5000` by default. Set `PORT` to change the po
 | `/sixhats/<id>` | Session detail: hat management, contributions per hat |
 | `/sixhats/participate/<id>` | Participant view — contribute to the current open hat |
 | **Utility** | |
+| `/results` | Results dashboard — exportable PDF summary of all sessions across all frameworks |
+| `/guide` | User & admin guide — when-to-use comparison, participant instructions, step-by-step admin how-to for all five frameworks (public, no login required) |
 | `/health` | Health check endpoint (returns `{"status": "ok"}`) |
 | `/admin/login` | Login (only shown when `ADMIN_SECRET` is set) |
 
@@ -413,13 +414,13 @@ sh_contributions  id, session_id, hat_id, hat_color, contributor, content, creat
 
 ## Results Dashboard
 
-The `/results` page is a unified admin view covering all five frameworks:
+The `/results` page is a unified admin view covering all five frameworks. Each framework section opens with a status count strip, followed by a card per session showing what the session was about and what the outcome was.
 
-- **Cynefin** — domain distribution bar chart, status breakdown, decision list with pending action counts
-- **Delphi** — sessions with consensus status, round counts, per-item IQR and median
-- **Pre-Mortem** — sessions with risk counts grouped by severity
-- **Decision Matrix** — sessions with ranked option results
-- **Six Thinking Hats** — sessions with hat completion status and contribution counts
+- **Cynefin** — domain distribution bar chart; Open/Decided/Deferred counts; per-decision card with classification, approach guidance, and action outcomes
+- **Delphi** — Open/Closed/Consensus counts; per-session card showing the question, consensus verdict, and per-item IQR/median table
+- **Pre-Mortem** — Setup/Brainstorming/Reviewing/Complete counts; per-session card showing the plan under review and risk table with severity, likelihood, and mitigation
+- **Decision Matrix** — Open/Scoring/Closed counts; per-session card showing the decision to make, recommended option, and full ranked scoring table
+- **Six Thinking Hats** — Pending/Active/Complete counts; per-session card showing the topic and all contributions grouped by hat colour
 
 The page has a **Save as PDF** button (uses the browser's print dialog with print-optimised CSS).
 
@@ -487,9 +488,10 @@ decisionsupport/
 ├── decision_cli.py      decision CLI entry point (proxies to active framework)
 ├── web.py               Flask application — all routes for all five frameworks
 └── templates/
-    ├── base.html              Bootstrap 5 base layout, navbar (all 5 frameworks), confirm modal
+    ├── base.html              Bootstrap 5 base layout, navbar (all 5 frameworks), confirm modal, footer
     ├── index.html             Dashboard
     ├── results.html           Results dashboard (all frameworks, PDF-printable)
+    ├── guide.html             Public user & admin guide (no login required)
     ├── admin/
     │   └── login.html         Admin login page
     ├── participate/
