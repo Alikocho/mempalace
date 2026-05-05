@@ -7,6 +7,16 @@
   <span>/</span><span>{{ session.id }}</span>
 </div>
 
+<div class="alert alert-info d-flex align-items-center gap-3 py-2 mb-3 no-print">
+  <span class="small"><strong>Participant link:</strong>
+    <a href="{{ participate_url }}" target="_blank" class="font-monospace">{{ participate_url }}</a>
+  </span>
+  <button class="btn btn-sm btn-outline-secondary ms-auto"
+          onclick="navigator.clipboard.writeText('{{ participate_url }}'); this.textContent='Copied!'">
+    Copy
+  </button>
+</div>
+
 <div class="row g-4">
 
   {# ---- Left column ---- #}

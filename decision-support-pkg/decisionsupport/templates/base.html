@@ -42,6 +42,11 @@
       <form method="post" action="{{ url_for('toggle_framework') }}" class="d-inline ms-1">
         <button type="submit" class="btn btn-sm btn-outline-light fw-toggle-btn">&#8645; Toggle</button>
       </form>
+      {% if admin_secret_set %}
+      <form method="post" action="{{ url_for('admin_logout') }}" class="d-inline ms-2">
+        <button type="submit" class="btn btn-sm btn-outline-danger fw-toggle-btn">Logout</button>
+      </form>
+      {% endif %}
     </div>
   </div>
 </nav>

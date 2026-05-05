@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ delphi_session.title }}</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+  <style>
+    body { background: #f8f9fa; }
+    .session-header { background: #fff; border-bottom: 1px solid #e3e6ea; padding: 1rem 0; margin-bottom: 2rem; }
+    .rating-row { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+    .rating-row input[type=range] { flex: 1; min-width: 140px; }
+    .rating-val { font-weight: 700; width: 2rem; text-align: center; }
+  </style>
+</head>
+<body>
+
+<div class="session-header">
+  <div class="container">
+    <h5 class="mb-0 fw-bold">&#9675; {{ delphi_session.title }}</h5>
+  </div>
+</div>
+
+<div class="container pb-5" style="max-width: 680px;">
+
+  {% for cat, msg in get_flashed_messages(with_categories=True) %}
+  <div class="alert alert-{{ cat }} alert-dismissible fade show py-2" role="alert">
+    {{ msg }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>
+  {% endfor %}
+
+  {# ── Session question ── #}
+  <div class="card mb-4">
+    <div class="card-body">
+      <p class="text-muted small mb-1">Question under consideration</p>
+      <p class="fs-5 fw-semibold mb-0">{{ delphi_session.question }}</p>
+    </div>
+  </div>
+
+  {# ── Active round ── #}
+  {% if current_round %}
+  <div class="card border-primary mb-4">
+    <div class="card-header bg-primary text-white fw-semibold">
+      Round {{ current_round.round_number }} — Open for responses
+    </div>
+    <div class="card-body">
+      {% if current_round.prompt %}
+      <p class="mb-3">{{ current_round.prompt }}</p>
+      {% endif %}
+
+      {# Response form #}
+      <form method="post" action="{{ url_for('participate_respond', session_id=delphi_session.id) }}">
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Your name <span class="text-muted fw-normal">(optional)</span></label>
+          <input type="text" name="respondent" class="form-control form-control-sm"
+                 placeholder="Leave blank to respond anonymously">
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Your response</label>
+          <textarea name="text" class="form-control" rows="4"
+                    placeholder="Share your view on the question above…" required></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">Submit response</button>
+      </form>
+
+      {# Rating form — only if items exist #}
+      {% if items %}
+      <hr class="my-4">
+      <h6 class="fw-semibold mb-3">Rate the following items <span class="text-muted fw-normal">({{ rating_min }}–{{ rating_max }})</span></h6>
+      <form method="post" action="{{ url_for('participate_rate', session_id=delphi_session.id) }}">
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Your name <span class="text-muted fw-normal">(optional)</span></label>
+          <input type="text" name="respondent" class="form-control form-control-sm"
+                 placeholder="Leave blank to rate anonymously">
+        </div>
+        {% for item in items %}
+        <div class="mb-4">
+          <div class="fw-semibold mb-2">{{ loop.index }}. {{ item.text }}</div>
+          <div class="rating-row">
+            <span class="text-muted small">{{ rating_min }}</span>
+            <input type="range" name="rating_{{ item.id }}"
+                   min="{{ rating_min }}" max="{{ rating_max }}" step="1" value="{{ ((rating_min + rating_max) / 2) | int }}"
+                   oninput="this.nextElementSibling.textContent = this.value">
+            <span class="rating-val">{{ ((rating_min + rating_max) / 2) | int }}</span>
+            <span class="text-muted small">{{ rating_max }}</span>
+          </div>
+          <div class="mt-2">
+            <input type="text" name="rationale_{{ item.id }}" class="form-control form-control-sm"
+                   placeholder="Brief rationale (optional)">
+          </div>
+        </div>
+        {% endfor %}
+        <button type="submit" class="btn btn-outline-primary">Submit ratings</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+
+  {% else %}
+  <div class="alert alert-secondary">
+    <strong>No round is currently open.</strong>
+    The facilitator will notify you when the next round opens.
+  </div>
+  {% endif %}
+
+  {# ── Previous round summaries — no stats, no names ── #}
+  {% if closed_rounds %}
+  <h6 class="fw-semibold mt-4 mb-3">Previous round summaries</h6>
+  {% for r in closed_rounds | reverse %}
+  <div class="card mb-3">
+    <div class="card-header text-muted small">Round {{ r.round_number }} — Closed</div>
+    <div class="card-body">
+      {% if r.summary %}
+      <p class="mb-0">{{ r.summary }}</p>
+      {% else %}
+      <p class="mb-0 text-muted">No summary provided for this round.</p>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+  {% endif %}
+
+  <p class="text-muted small text-center mt-5">Decision Support &mdash; participant view</p>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

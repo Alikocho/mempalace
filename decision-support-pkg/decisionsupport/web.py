@@ -2,23 +2,30 @@
 """
 Decision Support — Web Interface
 
-Flask application wrapping Cynefin and Delphi decision support tools.
-
 Environment variables:
     DECISION_SUPPORT_DATA_DIR   Path for SQLite databases (default: ~/.decisionsupport)
     SECRET_KEY                  Flask secret key — change in production
+    ADMIN_SECRET                Password to access the admin interface
     PORT                        Port to bind (Railway sets this automatically)
     FLASK_DEBUG                 Set to 'true' to enable debug mode
 """
 from __future__ import annotations
 
+import functools
 import os
 import tempfile
+import traceback
 from pathlib import Path
 
-import traceback
-
-from flask import Flask, flash, redirect, render_template, request, url_for
+from flask import (
+    Flask,
+    flash,
+    redirect,
+    render_template,
+    request,
+    session as flask_session,
+    url_for,
+)
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from .cynefin import (
@@ -43,6 +50,8 @@ _CYNEFIN_DB_PATH = str(DATA_DIR / "cynefin.db")
 _DELPHI_DB_PATH = str(DATA_DIR / "delphi.db")
 _FRAMEWORK_CONFIG = DATA_DIR / "decision_framework"
 
+ADMIN_SECRET = os.environ.get("ADMIN_SECRET", "")
+
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-change-me-in-production")
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
@@ -51,6 +60,53 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 @app.errorhandler(500)
 def _internal_error(e):
     return f"<pre>{traceback.format_exc()}</pre>", 500
+
+
+# ---------------------------------------------------------------------------
+# Admin auth
+# ---------------------------------------------------------------------------
+
+
+def _is_admin() -> bool:
+    """True when no ADMIN_SECRET is configured (open mode) or user is authenticated."""
+    if not ADMIN_SECRET or app.testing:
+        return True
+    return flask_session.get("is_admin") is True
+
+
+def admin_required(f):
+    @functools.wraps(f)
+    def decorated(*args, **kwargs):
+        if not _is_admin():
+            return redirect(url_for("admin_login", next=request.path))
+        return f(*args, **kwargs)
+    return decorated
+
+
+@app.route("/admin/login", methods=["GET", "POST"])
+def admin_login():
+    if not ADMIN_SECRET:
+        return redirect(url_for("index"))
+    if _is_admin():
+        return redirect(url_for("index"))
+    if request.method == "POST":
+        if request.form.get("secret", "") == ADMIN_SECRET:
+            flask_session["is_admin"] = True
+            flask_session.permanent = True
+            return redirect(request.form.get("next") or url_for("index"))
+        flash("Incorrect password", "danger")
+    return render_template("admin/login.html", next=request.args.get("next", ""))
+
+
+@app.route("/admin/logout", methods=["POST"])
+def admin_logout():
+    flask_session.pop("is_admin", None)
+    return redirect(url_for("admin_login"))
+
+
+# ---------------------------------------------------------------------------
+# DB helpers
+# ---------------------------------------------------------------------------
 
 
 def _cdb() -> CynefinDB:
@@ -67,7 +123,7 @@ def _fw() -> str:
 
 @app.context_processor
 def _inject_globals():
-    return {"active_framework": _fw(), "frameworks": FRAMEWORKS}
+    return {"active_framework": _fw(), "frameworks": FRAMEWORKS, "is_admin": _is_admin(), "admin_secret_set": bool(ADMIN_SECRET)}
 
 
 # ---------------------------------------------------------------------------
@@ -86,6 +142,7 @@ def health():
 
 
 @app.route("/")
+@admin_required
 def index():
     decisions = _cdb().list_decisions()[:6]
     sessions = _ddb().list_sessions()[:6]
@@ -93,13 +150,13 @@ def index():
 
 
 @app.route("/results")
+@admin_required
 def results():
     import datetime
 
     cdb = _cdb()
     ddb = _ddb()
 
-    # --- Cynefin ---
     all_decisions = cdb.list_decisions()
     domain_counts = {"clear": 0, "complicated": 0, "complex": 0, "chaotic": 0, "disorder": 0}
     status_counts = {"open": 0, "decided": 0, "deferred": 0}
@@ -115,7 +172,6 @@ def results():
             "pending_actions": sum(1 for a in actions if not a["resolved_at"]),
         })
 
-    # --- Delphi ---
     all_sessions = ddb.list_sessions()
     sessions_detail = []
     consensus_count = 0
@@ -146,6 +202,7 @@ def results():
 
 
 @app.route("/toggle", methods=["POST"])
+@admin_required
 def toggle_framework():
     new_fw = toggle(config_path=_FRAMEWORK_CONFIG)
     flash(f"Switched to {new_fw.title()}", "info")
@@ -153,6 +210,7 @@ def toggle_framework():
 
 
 @app.route("/framework/<name>", methods=["POST"])
+@admin_required
 def set_framework_route(name: str):
     try:
         set_framework(name, config_path=_FRAMEWORK_CONFIG)
@@ -168,6 +226,7 @@ def set_framework_route(name: str):
 
 
 @app.route("/cynefin/")
+@admin_required
 def cynefin_list():
     status = request.args.get("status")
     decisions = _cdb().list_decisions(status=status or None)
@@ -175,6 +234,7 @@ def cynefin_list():
 
 
 @app.route("/cynefin/new", methods=["GET", "POST"])
+@admin_required
 def cynefin_new():
     if request.method == "POST":
         title = request.form.get("title", "").strip()
@@ -189,6 +249,7 @@ def cynefin_new():
 
 
 @app.route("/cynefin/<decision_id>")
+@admin_required
 def cynefin_show(decision_id: str):
     db = _cdb()
     decision = db.get_decision(decision_id)
@@ -218,6 +279,7 @@ def cynefin_show(decision_id: str):
 
 
 @app.route("/cynefin/<decision_id>/assess", methods=["POST"])
+@admin_required
 def cynefin_assess(decision_id: str):
     db = _cdb()
     if db.get_decision(decision_id) is None:
@@ -251,6 +313,7 @@ def cynefin_assess(decision_id: str):
 
 
 @app.route("/cynefin/<decision_id>/note", methods=["POST"])
+@admin_required
 def cynefin_note(decision_id: str):
     content = request.form.get("content", "").strip()
     if content:
@@ -260,6 +323,7 @@ def cynefin_note(decision_id: str):
 
 
 @app.route("/cynefin/<decision_id>/action", methods=["POST"])
+@admin_required
 def cynefin_action(decision_id: str):
     action_text = request.form.get("action_text", "").strip()
     if action_text:
@@ -269,6 +333,7 @@ def cynefin_action(decision_id: str):
 
 
 @app.route("/cynefin/<decision_id>/status", methods=["POST"])
+@admin_required
 def cynefin_status(decision_id: str):
     status = request.form.get("status", "").strip()
     if status in ("open", "decided", "closed"):
@@ -278,6 +343,7 @@ def cynefin_status(decision_id: str):
 
 
 @app.route("/cynefin/import", methods=["GET", "POST"])
+@admin_required
 def cynefin_import():
     if request.method == "POST":
         f = request.files.get("form_json")
@@ -300,6 +366,7 @@ def cynefin_import():
 
 
 @app.route("/cynefin/<decision_id>/ingest", methods=["POST"])
+@admin_required
 def cynefin_ingest(decision_id: str):
     f = request.files.get("transcript")
     if not f or not f.filename:
@@ -321,11 +388,12 @@ def cynefin_ingest(decision_id: str):
 
 
 # ---------------------------------------------------------------------------
-# Delphi routes
+# Delphi routes — admin
 # ---------------------------------------------------------------------------
 
 
 @app.route("/delphi/")
+@admin_required
 def delphi_list():
     status = request.args.get("status")
     sessions = _ddb().list_sessions(status=status or None)
@@ -333,6 +401,7 @@ def delphi_list():
 
 
 @app.route("/delphi/new", methods=["GET", "POST"])
+@admin_required
 def delphi_new():
     if request.method == "POST":
         title = request.form.get("title", "").strip()
@@ -357,10 +426,11 @@ def delphi_new():
 
 
 @app.route("/delphi/<session_id>")
+@admin_required
 def delphi_show(session_id: str):
     db = _ddb()
-    session = db.get_session(session_id)
-    if session is None:
+    delphi_session = db.get_session(session_id)
+    if delphi_session is None:
         flash(f"Session '{session_id}' not found", "danger")
         return redirect(url_for("delphi_list"))
     rounds = db.list_rounds(session_id)
@@ -371,9 +441,10 @@ def delphi_show(session_id: str):
     consensus = db.session_consensus_summary(session_id)
     current_stats = db.round_statistics(session_id, current_round["id"]) if current_round else []
     stats_by_item = {s["item_id"]: s for s in current_stats}
+    participate_url = url_for("participate_show", session_id=session_id, _external=True)
     return render_template(
         "delphi/show.html",
-        session=session,
+        session=delphi_session,
         rounds=rounds,
         current_round=current_round,
         items=items,
@@ -383,10 +454,12 @@ def delphi_show(session_id: str):
         stats_by_item=stats_by_item,
         rating_min=RATING_MIN,
         rating_max=RATING_MAX,
+        participate_url=participate_url,
     )
 
 
 @app.route("/delphi/<session_id>/round/open", methods=["POST"])
+@admin_required
 def delphi_round_open(session_id: str):
     prompt = request.form.get("prompt", "").strip()
     try:
@@ -398,6 +471,7 @@ def delphi_round_open(session_id: str):
 
 
 @app.route("/delphi/<session_id>/round/close", methods=["POST"])
+@admin_required
 def delphi_round_close(session_id: str):
     summary = request.form.get("summary", "").strip()
     try:
@@ -409,6 +483,7 @@ def delphi_round_close(session_id: str):
 
 
 @app.route("/delphi/<session_id>/respond", methods=["POST"])
+@admin_required
 def delphi_respond(session_id: str):
     db = _ddb()
     current_round = db.get_current_round(session_id)
@@ -431,19 +506,21 @@ def delphi_respond(session_id: str):
 
 
 @app.route("/delphi/<session_id>/item", methods=["POST"])
+@admin_required
 def delphi_item(session_id: str):
     db = _ddb()
-    session = db.get_session(session_id)
+    delphi_session = db.get_session(session_id)
     text = request.form.get("text", "").strip()
     if not text:
         flash("Item text is required", "danger")
         return redirect(url_for("delphi_show", session_id=session_id))
-    db.add_item(session_id, text, source_round=session["current_round"])
+    db.add_item(session_id, text, source_round=delphi_session["current_round"])
     flash("Item added", "success")
     return redirect(url_for("delphi_show", session_id=session_id))
 
 
 @app.route("/delphi/<session_id>/rate", methods=["POST"])
+@admin_required
 def delphi_rate(session_id: str):
     db = _ddb()
     current_round = db.get_current_round(session_id)
@@ -475,6 +552,7 @@ def delphi_rate(session_id: str):
 
 
 @app.route("/delphi/<session_id>/note", methods=["POST"])
+@admin_required
 def delphi_note(session_id: str):
     content = request.form.get("content", "").strip()
     if content:
@@ -484,6 +562,7 @@ def delphi_note(session_id: str):
 
 
 @app.route("/delphi/<session_id>/import", methods=["POST"])
+@admin_required
 def delphi_import(session_id: str):
     f = request.files.get("responses_json")
     if not f or not f.filename:
@@ -500,6 +579,82 @@ def delphi_import(session_id: str):
         if os.path.exists(tmp_path):
             os.unlink(tmp_path)
     return redirect(url_for("delphi_show", session_id=session_id))
+
+
+# ---------------------------------------------------------------------------
+# Participant routes — no auth, restricted view
+# ---------------------------------------------------------------------------
+
+
+@app.route("/participate/<session_id>")
+def participate_show(session_id: str):
+    db = _ddb()
+    delphi_session = db.get_session(session_id)
+    if delphi_session is None:
+        return render_template("participate/not_found.html"), 404
+    current_round = db.get_current_round(session_id)
+    items = db.get_items(session_id) if current_round else []
+    closed_rounds = [r for r in db.list_rounds(session_id) if r["status"] == "closed"]
+    return render_template(
+        "participate/show.html",
+        delphi_session=delphi_session,
+        current_round=current_round,
+        items=items,
+        closed_rounds=closed_rounds,
+        rating_min=RATING_MIN,
+        rating_max=RATING_MAX,
+    )
+
+
+@app.route("/participate/<session_id>/respond", methods=["POST"])
+def participate_respond(session_id: str):
+    db = _ddb()
+    current_round = db.get_current_round(session_id)
+    if not current_round:
+        flash("This round is not currently open for responses.", "warning")
+        return redirect(url_for("participate_show", session_id=session_id))
+    text = request.form.get("text", "").strip()
+    if not text:
+        flash("Please enter a response before submitting.", "warning")
+        return redirect(url_for("participate_show", session_id=session_id))
+    respondent = request.form.get("respondent", "").strip() or "anonymous"
+    try:
+        db.add_response(session_id, current_round["id"], text, respondent=respondent)
+        flash("Your response has been recorded. Thank you.", "success")
+    except ValueError as exc:
+        flash(str(exc), "warning")
+    return redirect(url_for("participate_show", session_id=session_id))
+
+
+@app.route("/participate/<session_id>/rate", methods=["POST"])
+def participate_rate(session_id: str):
+    db = _ddb()
+    current_round = db.get_current_round(session_id)
+    if not current_round:
+        flash("This round is not currently open for ratings.", "warning")
+        return redirect(url_for("participate_show", session_id=session_id))
+    respondent = request.form.get("respondent", "").strip() or "anonymous"
+    items = db.get_items(session_id)
+    rated = 0
+    for item in items:
+        rating_raw = request.form.get(f"rating_{item['id']}", "").strip()
+        if not rating_raw:
+            continue
+        try:
+            db.add_rating(
+                session_id,
+                current_round["id"],
+                item["id"],
+                rating=float(rating_raw),
+                respondent=respondent,
+                rationale=request.form.get(f"rationale_{item['id']}", "").strip(),
+            )
+            rated += 1
+        except (ValueError, TypeError):
+            pass
+    if rated:
+        flash(f"Thank you — {rated} rating(s) submitted.", "success")
+    return redirect(url_for("participate_show", session_id=session_id))
 
 
 # ---------------------------------------------------------------------------
