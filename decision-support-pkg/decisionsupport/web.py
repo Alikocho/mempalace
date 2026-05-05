@@ -33,7 +33,6 @@ from .cynefin import (
     QUESTIONS,
     CynefinDB,
     classify_from_responses,
-    ingest_form_json,
     ingest_transcript,
 )
 from .decision import FRAMEWORKS, get_framework, set_framework, toggle
@@ -427,28 +426,6 @@ def cynefin_delete(decision_id: str):
     flash("Decision permanently deleted.", "warning")
     return redirect(url_for("cynefin_list"))
 
-
-@app.route("/cynefin/import", methods=["GET", "POST"])
-@admin_required
-def cynefin_import():
-    if request.method == "POST":
-        f = request.files.get("form_json")
-        if not f or not f.filename:
-            flash("Please select a JSON file", "danger")
-            return render_template("cynefin/import.html")
-        suffix = Path(f.filename).suffix or ".json"
-        tmp_path = tempfile.mktemp(suffix=suffix)
-        try:
-            f.save(tmp_path)
-            did = ingest_form_json(_cdb(), tmp_path)
-            flash(f"Decision imported: {did}", "success")
-            return redirect(url_for("cynefin_show", decision_id=did))
-        except (ValueError, OSError) as exc:
-            flash(str(exc), "danger")
-        finally:
-            if os.path.exists(tmp_path):
-                os.unlink(tmp_path)
-    return render_template("cynefin/import.html")
 
 
 @app.route("/cynefin/<decision_id>/ingest", methods=["POST"])

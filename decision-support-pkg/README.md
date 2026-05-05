@@ -171,7 +171,6 @@ The app binds to `http://localhost:5000` by default. Set `PORT` to change the po
 | `/cynefin/` | List decisions (filter by status, show archived) |
 | `/cynefin/new` | Create a decision |
 | `/cynefin/<id>` | Decision detail: assessment, domain guidance, notes, actions |
-| `/cynefin/import` | Import from JSON form file |
 | **Delphi** | |
 | `/delphi/` | List sessions |
 | `/delphi/new` | Create a session |
@@ -314,29 +313,6 @@ delphi export <sid> --file session_abc12345.json
 ---
 
 ## Input Formats
-
-### Cynefin — JSON form
-
-Use to submit assessment answers asynchronously (e.g. a stakeholder fills in a form offline):
-
-```json
-{
-  "title": "Database engine selection",
-  "description": "Choosing between Postgres and DynamoDB for the orders service",
-  "responses": {
-    "q_precedent":   "yes",
-    "q_causality":   "direct",
-    "q_agreement":   "partial",
-    "q_expertise":   "external",
-    "q_reversible":  "costly",
-    "q_urgency":     "moderate",
-    "q_information": "partial"
-  }
-}
-```
-
-Import via CLI: `cynefin import form.json`  
-Import via web: `/cynefin/import`
 
 ### Cynefin — transcripts
 
@@ -522,8 +498,7 @@ decisionsupport/
     ├── cynefin/
     │   ├── list.html          Decision list with status filter and archive toggle
     │   ├── new.html           Create decision form
-    │   ├── show.html          Decision detail, assessment, domain guidance, notes, actions
-    │   └── import.html        JSON import form
+    │   └── show.html          Decision detail, assessment, domain guidance, notes, actions
     ├── delphi/
     │   ├── list.html          Session list
     │   ├── new.html           Create session form
