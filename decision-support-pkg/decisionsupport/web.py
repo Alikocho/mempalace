@@ -38,6 +38,9 @@ from .cynefin import (
 )
 from .decision import FRAMEWORKS, get_framework, set_framework, toggle
 from .delphi import DEFAULT_CONSENSUS_THRESHOLD, RATING_MAX, RATING_MIN, DelphiDB
+from .premortem import LIKELIHOOD_LABELS, SEVERITY_LABELS, PreMortemDB
+from .decision_matrix import SCORE_MAX, SCORE_MIN, WEIGHT_MAX, WEIGHT_MIN, DecisionMatrixDB, compute_results
+from .sixhats import HAT_INFO, HATS_ORDER, SixHatsDB
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -48,6 +51,9 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 _CYNEFIN_DB_PATH = str(DATA_DIR / "cynefin.db")
 _DELPHI_DB_PATH = str(DATA_DIR / "delphi.db")
+_PREMORTEM_DB_PATH = str(DATA_DIR / "premortem.db")
+_MATRIX_DB_PATH = str(DATA_DIR / "decision_matrix.db")
+_SIXHATS_DB_PATH = str(DATA_DIR / "sixhats.db")
 _FRAMEWORK_CONFIG = DATA_DIR / "decision_framework"
 
 ADMIN_SECRET = os.environ.get("ADMIN_SECRET", "")
@@ -117,6 +123,18 @@ def _ddb() -> DelphiDB:
     return DelphiDB(db_path=_DELPHI_DB_PATH)
 
 
+def _pmdb() -> PreMortemDB:
+    return PreMortemDB(db_path=_PREMORTEM_DB_PATH)
+
+
+def _mxdb() -> DecisionMatrixDB:
+    return DecisionMatrixDB(db_path=_MATRIX_DB_PATH)
+
+
+def _shdb() -> SixHatsDB:
+    return SixHatsDB(db_path=_SIXHATS_DB_PATH)
+
+
 def _fw() -> str:
     return get_framework(config_path=_FRAMEWORK_CONFIG)
 
@@ -156,6 +174,9 @@ def results():
 
     cdb = _cdb()
     ddb = _ddb()
+    pmdb = _pmdb()
+    mxdb = _mxdb()
+    shdb = _shdb()
 
     all_decisions = cdb.list_decisions()
     domain_counts = {"clear": 0, "complicated": 0, "complex": 0, "chaotic": 0, "disorder": 0}
@@ -187,6 +208,29 @@ def results():
             "closed_rounds": sum(1 for r in rounds if r["status"] == "closed"),
         })
 
+    pm_sessions = pmdb.list_sessions()
+    pm_detail = []
+    for s in pm_sessions:
+        risks = pmdb.get_risks(s["id"])
+        scenarios = pmdb.get_scenarios(s["id"])
+        pm_detail.append({"session": s, "risks": risks, "scenario_count": len(scenarios)})
+
+    mx_sessions = mxdb.list_sessions()
+    mx_detail = []
+    for s in mx_sessions:
+        options = mxdb.get_options(s["id"])
+        criteria = mxdb.get_criteria(s["id"])
+        scores = mxdb.get_scores(s["id"])
+        results_data = compute_results(options, criteria, scores)
+        mx_detail.append({"session": s, "results": results_data, "criteria": criteria})
+
+    sh_sessions = shdb.list_sessions()
+    sh_detail = []
+    for s in sh_sessions:
+        hats = shdb.get_hats(s["id"])
+        contributions = shdb.get_contributions(s["id"])
+        sh_detail.append({"session": s, "hats": hats, "contribution_count": len(contributions)})
+
     return render_template(
         "results.html",
         decisions=decisions_detail,
@@ -197,6 +241,9 @@ def results():
         total_decisions=len(all_decisions),
         total_sessions=len(all_sessions),
         domain_info=DOMAIN_INFO,
+        pm_sessions=pm_detail,
+        mx_sessions=mx_detail,
+        sh_sessions=sh_detail,
         generated_at=datetime.datetime.now().strftime("%d %b %Y, %H:%M"),
     )
 
@@ -697,6 +744,500 @@ def participate_rate(session_id: str):
     if rated:
         flash(f"Thank you — {rated} rating(s) submitted.", "success")
     return redirect(url_for("participate_show", session_id=session_id))
+
+
+# ---------------------------------------------------------------------------
+# Pre-Mortem routes — admin
+# ---------------------------------------------------------------------------
+
+
+@app.route("/premortem/")
+@admin_required
+def premortem_list():
+    status = request.args.get("status")
+    archived = request.args.get("archived") == "1"
+    sessions = _pmdb().list_sessions(status=status or None, include_archived=archived)
+    return render_template("premortem/list.html", sessions=sessions, status_filter=status, show_archived=archived)
+
+
+@app.route("/premortem/new", methods=["GET", "POST"])
+@admin_required
+def premortem_new():
+    if request.method == "POST":
+        title = request.form.get("title", "").strip()
+        description = request.form.get("description", "").strip()
+        plan_text = request.form.get("plan_text", "").strip()
+        if not title:
+            flash("Title is required", "danger")
+            return render_template("premortem/new.html")
+        sid = _pmdb().create_session(title=title, description=description, plan_text=plan_text)
+        flash(f"Pre-Mortem session created: {sid}", "success")
+        return redirect(url_for("premortem_show", session_id=sid))
+    return render_template("premortem/new.html")
+
+
+@app.route("/premortem/<session_id>")
+@admin_required
+def premortem_show(session_id: str):
+    db = _pmdb()
+    session = db.get_session(session_id)
+    if session is None:
+        flash(f"Session '{session_id}' not found", "danger")
+        return redirect(url_for("premortem_list"))
+    scenarios = db.get_scenarios(session_id)
+    risks = db.get_risks(session_id)
+    participate_url = url_for("premortem_participate", session_id=session_id, _external=True)
+    return render_template(
+        "premortem/show.html",
+        session=session,
+        scenarios=scenarios,
+        risks=risks,
+        participate_url=participate_url,
+        severity_labels=SEVERITY_LABELS,
+        likelihood_labels=LIKELIHOOD_LABELS,
+    )
+
+
+@app.route("/premortem/<session_id>/status", methods=["POST"])
+@admin_required
+def premortem_status(session_id: str):
+    status = request.form.get("status", "").strip()
+    if status in ("setup", "brainstorming", "reviewing", "complete"):
+        _pmdb().set_status(session_id, status)
+        flash(f"Status updated to '{status}'", "success")
+    return redirect(url_for("premortem_show", session_id=session_id))
+
+
+@app.route("/premortem/<session_id>/plan", methods=["POST"])
+@admin_required
+def premortem_plan(session_id: str):
+    plan_text = request.form.get("plan_text", "").strip()
+    _pmdb().update_plan(session_id, plan_text)
+    flash("Plan updated", "success")
+    return redirect(url_for("premortem_show", session_id=session_id))
+
+
+@app.route("/premortem/<session_id>/scenario/add", methods=["POST"])
+@admin_required
+def premortem_add_scenario(session_id: str):
+    text = request.form.get("scenario_text", "").strip()
+    if not text:
+        flash("Scenario text is required", "danger")
+        return redirect(url_for("premortem_show", session_id=session_id))
+    _pmdb().add_scenario(session_id, text)
+    flash("Scenario added", "success")
+    return redirect(url_for("premortem_show", session_id=session_id))
+
+
+@app.route("/premortem/<session_id>/scenario/<scenario_id>/delete", methods=["POST"])
+@admin_required
+def premortem_delete_scenario(session_id: str, scenario_id: str):
+    _pmdb().delete_scenario(scenario_id)
+    flash("Scenario removed", "info")
+    return redirect(url_for("premortem_show", session_id=session_id))
+
+
+@app.route("/premortem/<session_id>/risk/add", methods=["POST"])
+@admin_required
+def premortem_add_risk(session_id: str):
+    risk_title = request.form.get("risk_title", "").strip()
+    if not risk_title:
+        flash("Risk title is required", "danger")
+        return redirect(url_for("premortem_show", session_id=session_id))
+    try:
+        severity = int(request.form.get("severity", 3))
+        likelihood = int(request.form.get("likelihood", 3))
+    except ValueError:
+        severity, likelihood = 3, 3
+    _pmdb().add_risk(
+        session_id=session_id,
+        risk_title=risk_title,
+        risk_description=request.form.get("risk_description", "").strip(),
+        severity=max(1, min(5, severity)),
+        likelihood=max(1, min(5, likelihood)),
+        mitigation=request.form.get("mitigation", "").strip(),
+        scenario_id=request.form.get("scenario_id") or None,
+    )
+    flash("Risk recorded", "success")
+    return redirect(url_for("premortem_show", session_id=session_id))
+
+
+@app.route("/premortem/<session_id>/risk/<risk_id>/delete", methods=["POST"])
+@admin_required
+def premortem_delete_risk(session_id: str, risk_id: str):
+    _pmdb().delete_risk(risk_id)
+    flash("Risk removed", "info")
+    return redirect(url_for("premortem_show", session_id=session_id))
+
+
+@app.route("/premortem/<session_id>/archive", methods=["POST"])
+@admin_required
+def premortem_archive(session_id: str):
+    _pmdb().set_status(session_id, "archived")
+    flash("Session archived.", "info")
+    return redirect(url_for("premortem_list"))
+
+
+@app.route("/premortem/<session_id>/delete", methods=["POST"])
+@admin_required
+def premortem_delete(session_id: str):
+    _pmdb().delete_session(session_id)
+    flash("Session permanently deleted.", "warning")
+    return redirect(url_for("premortem_list"))
+
+
+@app.route("/premortem/participate/<session_id>")
+def premortem_participate(session_id: str):
+    db = _pmdb()
+    session = db.get_session(session_id)
+    if session is None:
+        return render_template("participate/not_found.html"), 404
+    if session["status"] != "brainstorming":
+        return render_template("premortem/participate_closed.html", session=session), 200
+    return render_template("premortem/participate.html", session=session)
+
+
+@app.route("/premortem/participate/<session_id>/submit", methods=["POST"])
+def premortem_participate_submit(session_id: str):
+    db = _pmdb()
+    session = db.get_session(session_id)
+    if session is None or session["status"] != "brainstorming":
+        flash("This session is not currently accepting scenarios.", "warning")
+        return redirect(url_for("premortem_participate", session_id=session_id))
+    text = request.form.get("scenario_text", "").strip()
+    if not text:
+        flash("Please describe a failure scenario.", "warning")
+        return redirect(url_for("premortem_participate", session_id=session_id))
+    db.add_scenario(session_id, text, submitted_by="anonymous")
+    flash("Your scenario has been submitted. Thank you.", "success")
+    return redirect(url_for("premortem_participate", session_id=session_id))
+
+
+# ---------------------------------------------------------------------------
+# Decision Matrix routes — admin
+# ---------------------------------------------------------------------------
+
+
+@app.route("/matrix/")
+@admin_required
+def matrix_list():
+    status = request.args.get("status")
+    archived = request.args.get("archived") == "1"
+    sessions = _mxdb().list_sessions(status=status or None, include_archived=archived)
+    return render_template("matrix/list.html", sessions=sessions, status_filter=status, show_archived=archived)
+
+
+@app.route("/matrix/new", methods=["GET", "POST"])
+@admin_required
+def matrix_new():
+    if request.method == "POST":
+        title = request.form.get("title", "").strip()
+        description = request.form.get("description", "").strip()
+        if not title:
+            flash("Title is required", "danger")
+            return render_template("matrix/new.html")
+        sid = _mxdb().create_session(title=title, description=description)
+        flash(f"Decision Matrix created: {sid}", "success")
+        return redirect(url_for("matrix_show", session_id=sid))
+    return render_template("matrix/new.html")
+
+
+@app.route("/matrix/<session_id>")
+@admin_required
+def matrix_show(session_id: str):
+    db = _mxdb()
+    session = db.get_session(session_id)
+    if session is None:
+        flash(f"Matrix '{session_id}' not found", "danger")
+        return redirect(url_for("matrix_list"))
+    options = db.get_options(session_id)
+    criteria = db.get_criteria(session_id)
+    scores = db.get_scores(session_id)
+    results_data = compute_results(options, criteria, scores) if options and criteria else []
+    participate_url = url_for("matrix_participate", session_id=session_id, _external=True)
+    return render_template(
+        "matrix/show.html",
+        session=session,
+        options=options,
+        criteria=criteria,
+        scores=scores,
+        results=results_data,
+        participate_url=participate_url,
+        score_min=SCORE_MIN,
+        score_max=SCORE_MAX,
+        weight_min=WEIGHT_MIN,
+        weight_max=WEIGHT_MAX,
+    )
+
+
+@app.route("/matrix/<session_id>/status", methods=["POST"])
+@admin_required
+def matrix_status(session_id: str):
+    status = request.form.get("status", "").strip()
+    if status in ("setup", "scoring", "closed"):
+        _mxdb().set_status(session_id, status)
+        flash(f"Status updated to '{status}'", "success")
+    return redirect(url_for("matrix_show", session_id=session_id))
+
+
+@app.route("/matrix/<session_id>/option/add", methods=["POST"])
+@admin_required
+def matrix_add_option(session_id: str):
+    text = request.form.get("text", "").strip()
+    if not text:
+        flash("Option text is required", "danger")
+        return redirect(url_for("matrix_show", session_id=session_id))
+    _mxdb().add_option(session_id, text)
+    flash("Option added", "success")
+    return redirect(url_for("matrix_show", session_id=session_id))
+
+
+@app.route("/matrix/<session_id>/option/<option_id>/delete", methods=["POST"])
+@admin_required
+def matrix_delete_option(session_id: str, option_id: str):
+    _mxdb().delete_option(option_id)
+    flash("Option removed", "info")
+    return redirect(url_for("matrix_show", session_id=session_id))
+
+
+@app.route("/matrix/<session_id>/criterion/add", methods=["POST"])
+@admin_required
+def matrix_add_criterion(session_id: str):
+    text = request.form.get("text", "").strip()
+    if not text:
+        flash("Criterion text is required", "danger")
+        return redirect(url_for("matrix_show", session_id=session_id))
+    try:
+        weight = int(request.form.get("weight", 1))
+    except ValueError:
+        weight = 1
+    _mxdb().add_criterion(session_id, text, weight=max(WEIGHT_MIN, min(WEIGHT_MAX, weight)))
+    flash("Criterion added", "success")
+    return redirect(url_for("matrix_show", session_id=session_id))
+
+
+@app.route("/matrix/<session_id>/criterion/<criterion_id>/weight", methods=["POST"])
+@admin_required
+def matrix_update_weight(session_id: str, criterion_id: str):
+    try:
+        weight = int(request.form.get("weight", 1))
+        _mxdb().update_criterion_weight(criterion_id, max(WEIGHT_MIN, min(WEIGHT_MAX, weight)))
+        flash("Weight updated", "success")
+    except ValueError:
+        flash("Invalid weight", "danger")
+    return redirect(url_for("matrix_show", session_id=session_id))
+
+
+@app.route("/matrix/<session_id>/criterion/<criterion_id>/delete", methods=["POST"])
+@admin_required
+def matrix_delete_criterion(session_id: str, criterion_id: str):
+    _mxdb().delete_criterion(criterion_id)
+    flash("Criterion removed", "info")
+    return redirect(url_for("matrix_show", session_id=session_id))
+
+
+@app.route("/matrix/<session_id>/archive", methods=["POST"])
+@admin_required
+def matrix_archive(session_id: str):
+    _mxdb().set_status(session_id, "archived")
+    flash("Matrix archived.", "info")
+    return redirect(url_for("matrix_list"))
+
+
+@app.route("/matrix/<session_id>/delete", methods=["POST"])
+@admin_required
+def matrix_delete(session_id: str):
+    _mxdb().delete_session(session_id)
+    flash("Matrix permanently deleted.", "warning")
+    return redirect(url_for("matrix_list"))
+
+
+@app.route("/matrix/participate/<session_id>")
+def matrix_participate(session_id: str):
+    db = _mxdb()
+    session = db.get_session(session_id)
+    if session is None:
+        return render_template("participate/not_found.html"), 404
+    if session["status"] != "scoring":
+        return render_template("matrix/participate_closed.html", session=session), 200
+    options = db.get_options(session_id)
+    criteria = db.get_criteria(session_id)
+    # Hide weights from participants
+    criteria_public = [{"id": c["id"], "text": c["text"]} for c in criteria]
+    return render_template(
+        "matrix/participate.html",
+        session=session,
+        options=options,
+        criteria=criteria_public,
+        score_min=SCORE_MIN,
+        score_max=SCORE_MAX,
+    )
+
+
+@app.route("/matrix/participate/<session_id>/score", methods=["POST"])
+def matrix_participate_score(session_id: str):
+    db = _mxdb()
+    session = db.get_session(session_id)
+    if session is None or session["status"] != "scoring":
+        flash("Scoring is not currently open.", "warning")
+        return redirect(url_for("matrix_participate", session_id=session_id))
+    respondent = request.form.get("respondent", "").strip() or "anonymous"
+    options = db.get_options(session_id)
+    criteria = db.get_criteria(session_id)
+    recorded = 0
+    for opt in options:
+        for crit in criteria:
+            key = f"score_{opt['id']}_{crit['id']}"
+            raw = request.form.get(key, "").strip()
+            if not raw:
+                continue
+            try:
+                db.add_score(session_id, opt["id"], crit["id"], float(raw), respondent=respondent)
+                recorded += 1
+            except (ValueError, TypeError):
+                pass
+    if recorded:
+        flash(f"Thank you — {recorded} score(s) submitted.", "success")
+    return redirect(url_for("matrix_participate", session_id=session_id))
+
+
+# ---------------------------------------------------------------------------
+# Six Thinking Hats routes — admin
+# ---------------------------------------------------------------------------
+
+
+@app.route("/sixhats/")
+@admin_required
+def sixhats_list():
+    status = request.args.get("status")
+    archived = request.args.get("archived") == "1"
+    sessions = _shdb().list_sessions(status=status or None, include_archived=archived)
+    return render_template("sixhats/list.html", sessions=sessions, status_filter=status, show_archived=archived)
+
+
+@app.route("/sixhats/new", methods=["GET", "POST"])
+@admin_required
+def sixhats_new():
+    if request.method == "POST":
+        title = request.form.get("title", "").strip()
+        description = request.form.get("description", "").strip()
+        topic = request.form.get("topic", "").strip()
+        if not title:
+            flash("Title is required", "danger")
+            return render_template("sixhats/new.html", hat_info=HAT_INFO, hats_order=HATS_ORDER)
+        sid = _shdb().create_session(title=title, description=description, topic=topic)
+        flash(f"Six Hats session created: {sid}", "success")
+        return redirect(url_for("sixhats_show", session_id=sid))
+    return render_template("sixhats/new.html", hat_info=HAT_INFO, hats_order=HATS_ORDER)
+
+
+@app.route("/sixhats/<session_id>")
+@admin_required
+def sixhats_show(session_id: str):
+    db = _shdb()
+    session = db.get_session(session_id)
+    if session is None:
+        flash(f"Session '{session_id}' not found", "danger")
+        return redirect(url_for("sixhats_list"))
+    hats = db.get_hats(session_id)
+    current_hat = db.get_current_hat(session_id)
+    contributions_by_hat = {}
+    for hat in hats:
+        contributions_by_hat[hat["id"]] = db.get_contributions(session_id, hat_id=hat["id"])
+    participate_url = url_for("sixhats_participate", session_id=session_id, _external=True)
+    return render_template(
+        "sixhats/show.html",
+        session=session,
+        hats=hats,
+        current_hat=current_hat,
+        contributions_by_hat=contributions_by_hat,
+        participate_url=participate_url,
+        hat_info=HAT_INFO,
+    )
+
+
+@app.route("/sixhats/<session_id>/hat/open", methods=["POST"])
+@admin_required
+def sixhats_open_hat(session_id: str):
+    try:
+        hat = _shdb().open_next_hat(session_id)
+        if hat:
+            info = HAT_INFO.get(hat["hat_color"], {})
+            flash(f"{info.get('label', hat['hat_color'])} is now open", "success")
+        else:
+            flash("All hats have been completed", "info")
+    except ValueError as exc:
+        flash(str(exc), "danger")
+    return redirect(url_for("sixhats_show", session_id=session_id))
+
+
+@app.route("/sixhats/<session_id>/hat/close", methods=["POST"])
+@admin_required
+def sixhats_close_hat(session_id: str):
+    color = _shdb().close_current_hat(session_id)
+    if color:
+        info = HAT_INFO.get(color, {})
+        flash(f"{info.get('label', color)} closed", "success")
+    else:
+        flash("No hat was open", "warning")
+    return redirect(url_for("sixhats_show", session_id=session_id))
+
+
+@app.route("/sixhats/<session_id>/archive", methods=["POST"])
+@admin_required
+def sixhats_archive(session_id: str):
+    _shdb().set_status(session_id, "archived")
+    flash("Session archived.", "info")
+    return redirect(url_for("sixhats_list"))
+
+
+@app.route("/sixhats/<session_id>/delete", methods=["POST"])
+@admin_required
+def sixhats_delete(session_id: str):
+    _shdb().delete_session(session_id)
+    flash("Session permanently deleted.", "warning")
+    return redirect(url_for("sixhats_list"))
+
+
+@app.route("/sixhats/participate/<session_id>")
+def sixhats_participate(session_id: str):
+    db = _shdb()
+    session = db.get_session(session_id)
+    if session is None:
+        return render_template("participate/not_found.html"), 404
+    current_hat = db.get_current_hat(session_id)
+    hats = db.get_hats(session_id)
+    closed_hats = [h for h in hats if h["status"] == "closed"]
+    return render_template(
+        "sixhats/participate.html",
+        session=session,
+        current_hat=current_hat,
+        closed_hats=closed_hats,
+        hat_info=HAT_INFO,
+    )
+
+
+@app.route("/sixhats/participate/<session_id>/contribute", methods=["POST"])
+def sixhats_contribute(session_id: str):
+    db = _shdb()
+    current_hat = db.get_current_hat(session_id)
+    if not current_hat:
+        flash("No hat is currently open for contributions.", "warning")
+        return redirect(url_for("sixhats_participate", session_id=session_id))
+    content = request.form.get("content", "").strip()
+    if not content:
+        flash("Please enter a contribution.", "warning")
+        return redirect(url_for("sixhats_participate", session_id=session_id))
+    contributor = request.form.get("contributor", "").strip() or "anonymous"
+    db.add_contribution(
+        session_id=session_id,
+        hat_id=current_hat["id"],
+        hat_color=current_hat["hat_color"],
+        content=content,
+        contributor=contributor,
+    )
+    flash("Your contribution has been recorded. Thank you.", "success")
+    return redirect(url_for("sixhats_participate", session_id=session_id))
 
 
 # ---------------------------------------------------------------------------

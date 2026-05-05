@@ -9,7 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Tuple
 
-FRAMEWORKS: Tuple[str, ...] = ("cynefin", "delphi")
+FRAMEWORKS: Tuple[str, ...] = ("cynefin", "delphi", "premortem", "matrix", "sixhats")
 _DEFAULT = "cynefin"
 _CONFIG_PATH = Path.home() / ".decisionsupport" / "decision_framework"
 

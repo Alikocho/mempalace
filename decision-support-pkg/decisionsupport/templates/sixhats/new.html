@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}New Six Hats Session{% endblock %}
+{% block content %}
+
+<div class="d-flex align-items-center mb-3 gap-2 small text-muted">
+  <a href="{{ url_for('sixhats_list') }}" class="text-muted text-decoration-none">&larr; Sessions</a>
+  <span>/</span><span>New</span>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-7">
+    <div class="card">
+      <div class="card-header fw-medium">New Six Thinking Hats Session</div>
+      <div class="card-body">
+        <form method="post">
+          <div class="mb-3">
+            <label class="form-label fw-medium">Title <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" name="title" placeholder="e.g. Should we expand to new markets?" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-medium">Description</label>
+            <input type="text" class="form-control" name="description" placeholder="Optional context">
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-medium">Topic / question for discussion</label>
+            <textarea class="form-control" name="topic" rows="3"
+                      placeholder="What specific question or decision will be explored?"></textarea>
+          </div>
+          <button type="submit" class="btn btn-warning text-dark">Create session</button>
+          <a href="{{ url_for('sixhats_list') }}" class="btn btn-outline-secondary ms-2">Cancel</a>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-5">
+    <div class="card">
+      <div class="card-header fw-medium">The six hats</div>
+      <div class="card-body p-2">
+        {% for color in hats_order %}
+        {% set info = hat_info[color] %}
+        <div class="d-flex align-items-start gap-2 p-2 border-bottom">
+          <span class="badge bg-{{ info.color_class }} {% if info.color_class == 'warning' %}text-dark{% endif %}">
+            {{ info.icon }} {{ info.label }}
+          </span>
+          <span class="small text-muted">{{ info.perspective }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
