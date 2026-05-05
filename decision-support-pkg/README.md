@@ -538,6 +538,6 @@ pyproject.toml          Package metadata and dependencies
 
 ## License
 
-MIT License &copy; 2025 [Alastair Kocho-Williams](https://github.com/alikocho)
+MIT License &copy; 2026 [Alastair Kocho-Williams](https://github.com/alikocho)
 
 See [LICENSE](LICENSE) for the full text.
