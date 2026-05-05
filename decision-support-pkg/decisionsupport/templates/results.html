@@ -7,6 +7,7 @@
   @media print {
     .no-print { display: none !important; }
     .navbar   { display: none !important; }
+    footer    { display: none !important; }
     body      { background: #fff !important; }
     .card     { border: 1px solid #ccc !important; box-shadow: none !important; break-inside: avoid; }
     .page-break { page-break-before: always; }
@@ -31,6 +32,11 @@
   .stat-box { text-align:center; padding: 1rem; border-radius: .5rem; background: #f8f9fa; border: 1px solid #e3e6ea; }
   .stat-box .num { font-size: 2rem; font-weight: 700; line-height: 1; }
   .stat-box .lbl { font-size: .75rem; color: #6c757d; margin-top: .25rem; }
+  .stat-box-sm .num { font-size: 1.4rem; }
+
+  .outcome-box { background: #f0f9f4; border: 1px solid #b7dfc7; border-radius: .4rem; padding: .6rem .9rem; }
+  .outcome-box.warning { background: #fffbea; border-color: #ffe082; }
+  .about-label { font-size: .7rem; text-transform: uppercase; letter-spacing: .05em; color: #6c757d; font-weight: 600; }
 </style>
 
 {# ── Header ───────────────────────────────────────── #}
@@ -119,7 +125,7 @@
   </div>
 </div>
 
-{# Status summary #}
+{# Cynefin status summary #}
 <div class="row g-3 mb-4">
   {% for st, label in [("open","Open"), ("decided","Decided"), ("deferred","Deferred")] %}
   <div class="col-4">
@@ -131,7 +137,7 @@
   {% endfor %}
 </div>
 
-{# Decision list #}
+{# Decision cards #}
 {% if decisions %}
 <div class="mb-5">
   {% for item in decisions %}
@@ -149,35 +155,45 @@
       </div>
     </div>
     <div class="card-body">
+
       {% if d.description %}
-      <p class="text-muted small mb-2">{{ d.description }}</p>
-      {% endif %}
-
-      {% if d.domain and domain_info.get(d.domain) %}
-      <p class="small mb-2">
-        <strong>Approach:</strong> {{ domain_info[d.domain].sense_act }} —
-        {{ domain_info[d.domain].description }}
-      </p>
-      {% endif %}
-
-      {% if item.actions %}
-      <div class="mt-2">
-        <strong class="small">Actions</strong>
-        <ul class="mb-0 small mt-1">
-          {% for a in item.actions %}
-          <li class="{% if a.resolved_at %}text-muted{% endif %}">
-            {{ a.action_text }}
-            {% if a.resolved_at %}<span class="badge bg-success ms-1">Done</span>{% endif %}
-          </li>
-          {% endfor %}
-        </ul>
+      <div class="mb-3">
+        <div class="about-label mb-1">About this decision</div>
+        <p class="mb-0 small">{{ d.description }}</p>
       </div>
       {% endif %}
 
-      <div class="mt-2 small text-muted">
+      <div class="mb-3">
+        <div class="about-label mb-1">Classification &amp; approach</div>
+        {% if d.domain and domain_info.get(d.domain) %}
+        <div class="outcome-box {% if d.status not in ('decided','closed') %}warning{% endif %}">
+          <strong>{{ d.domain | title }}</strong> &mdash; {{ domain_info[d.domain].sense_act }}<br>
+          <span class="small text-muted">{{ domain_info[d.domain].description }}</span>
+        </div>
+        {% else %}
+        <span class="text-muted small">Not yet classified.</span>
+        {% endif %}
+      </div>
+
+      {% if item.actions %}
+      <div class="about-label mb-1">Actions &amp; outcomes</div>
+      <ul class="mb-2 small mt-1">
+        {% for a in item.actions %}
+        <li class="{% if a.resolved_at %}text-muted{% endif %}">
+          {{ a.action_text }}
+          {% if a.resolved_at %}
+            <span class="badge bg-success ms-1">Done</span>
+            {% if a.outcome %}<span class="text-muted"> — {{ a.outcome }}</span>{% endif %}
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+
+      <div class="small text-muted">
         Created {{ d.created_at[:10] }}
         {% if item.pending_actions > 0 %}
-        · <span class="text-warning fw-semibold">{{ item.pending_actions }} action{{ 's' if item.pending_actions != 1 }} pending</span>
+        &middot; <span class="text-warning fw-semibold">{{ item.pending_actions }} action{{ 's' if item.pending_actions != 1 }} pending</span>
         {% endif %}
       </div>
     </div>
@@ -193,6 +209,17 @@
 ══════════════════════════════════════════════════════ #}
 <div class="page-break"></div>
 <h4 class="section-title">Delphi Sessions</h4>
+
+{# Delphi status summary #}
+{% if sessions %}
+<div class="row g-3 mb-4">
+  {% set open_count   = sessions | selectattr('session.status', 'equalto', 'open')   | list | length %}
+  {% set closed_count = sessions | selectattr('session.status', 'equalto', 'closed') | list | length %}
+  <div class="col-4"><div class="stat-box"><div class="num">{{ open_count }}</div><div class="lbl">Open</div></div></div>
+  <div class="col-4"><div class="stat-box"><div class="num">{{ closed_count }}</div><div class="lbl">Closed</div></div></div>
+  <div class="col-4"><div class="stat-box"><div class="num">{{ consensus_count }}</div><div class="lbl">Consensus</div></div></div>
+</div>
+{% endif %}
 
 {% if sessions %}
 {% for item in sessions %}
@@ -213,32 +240,54 @@
     </div>
   </div>
   <div class="card-body">
-    <p class="mb-2"><strong>Question:</strong> {{ s.question }}</p>
+
+    <div class="mb-3">
+      <div class="about-label mb-1">Question under deliberation</div>
+      <p class="mb-0 small fw-medium">{{ s.question }}</p>
+    </div>
+
+    <div class="mb-3">
+      <div class="about-label mb-1">Outcome</div>
+      {% if summary.all_consensus %}
+      <div class="outcome-box">
+        <strong>&#10003; Consensus reached</strong> across all items after {{ item.closed_rounds }} round{{ 's' if item.closed_rounds != 1 }}.
+      </div>
+      {% elif item.closed_rounds > 0 %}
+      <div class="outcome-box warning">
+        <strong>No full consensus</strong> after {{ item.closed_rounds }} round{{ 's' if item.closed_rounds != 1 }}.
+        {% if summary.item_stats %}
+          {{ summary.item_stats | selectattr('consensus') | list | length }}/{{ summary.item_stats | length }} items reached consensus.
+        {% endif %}
+      </div>
+      {% else %}
+      <span class="text-muted small">No rounds closed yet.</span>
+      {% endif %}
+    </div>
 
     <div class="row g-2 mb-3">
       <div class="col-4">
-        <div class="stat-box py-2">
-          <div class="num" style="font-size:1.4rem">{{ item.rounds | length }}</div>
-          <div class="lbl">Rounds Total</div>
+        <div class="stat-box py-2 stat-box-sm">
+          <div class="num">{{ item.rounds | length }}</div>
+          <div class="lbl">Rounds</div>
         </div>
       </div>
       <div class="col-4">
-        <div class="stat-box py-2">
-          <div class="num" style="font-size:1.4rem">{{ item.closed_rounds }}</div>
-          <div class="lbl">Rounds Closed</div>
+        <div class="stat-box py-2 stat-box-sm">
+          <div class="num">{{ item.closed_rounds }}</div>
+          <div class="lbl">Closed</div>
         </div>
       </div>
       <div class="col-4">
-        <div class="stat-box py-2">
-          <div class="num" style="font-size:1.4rem">{{ summary.item_stats | length }}</div>
-          <div class="lbl">Items Rated</div>
+        <div class="stat-box py-2 stat-box-sm">
+          <div class="num">{{ summary.item_stats | length }}</div>
+          <div class="lbl">Items</div>
         </div>
       </div>
     </div>
 
     {% if summary.item_stats %}
-    <strong class="small">Item Ratings (Round {{ summary.as_of_round }})</strong>
-    <table class="table table-sm table-bordered mt-2 small">
+    <div class="about-label mb-1">Item ratings (Round {{ summary.as_of_round }})</div>
+    <table class="table table-sm table-bordered mt-1 small">
       <thead class="table-light">
         <tr>
           <th>Item</th>
@@ -266,10 +315,6 @@
         {% endfor %}
       </tbody>
     </table>
-    {% elif item.closed_rounds == 0 %}
-    <p class="text-muted small mb-0">No rounds closed yet — ratings not available.</p>
-    {% else %}
-    <p class="text-muted small mb-0">No items rated.</p>
     {% endif %}
 
     <div class="mt-2 small text-muted">Created {{ s.created_at[:10] }}</div>
@@ -286,6 +331,20 @@
 <div class="page-break"></div>
 <h4 class="section-title mt-4">Pre-Mortem Sessions</h4>
 
+{# Pre-Mortem status summary #}
+{% if pm_sessions %}
+<div class="row g-3 mb-4">
+  {% set pm_setup       = pm_sessions | selectattr('session.status', 'equalto', 'setup')        | list | length %}
+  {% set pm_brainstorm  = pm_sessions | selectattr('session.status', 'equalto', 'brainstorming') | list | length %}
+  {% set pm_reviewing   = pm_sessions | selectattr('session.status', 'equalto', 'reviewing')     | list | length %}
+  {% set pm_complete    = pm_sessions | selectattr('session.status', 'equalto', 'complete')      | list | length %}
+  <div class="col-3"><div class="stat-box"><div class="num">{{ pm_setup }}</div><div class="lbl">Setup</div></div></div>
+  <div class="col-3"><div class="stat-box"><div class="num">{{ pm_brainstorm }}</div><div class="lbl">Brainstorming</div></div></div>
+  <div class="col-3"><div class="stat-box"><div class="num">{{ pm_reviewing }}</div><div class="lbl">Reviewing</div></div></div>
+  <div class="col-3"><div class="stat-box"><div class="num">{{ pm_complete }}</div><div class="lbl">Complete</div></div></div>
+</div>
+{% endif %}
+
 {% if pm_sessions %}
 {% for item in pm_sessions %}
 {% set s = item.session %}
@@ -300,17 +359,26 @@
     </div>
   </div>
   <div class="card-body">
-    {% if s.description %}
-    <p class="text-muted small mb-3">{{ s.description }}</p>
+
+    {% if s.description or s.plan_text %}
+    <div class="mb-3">
+      {% if s.description %}
+      <div class="about-label mb-1">About this session</div>
+      <p class="small mb-2">{{ s.description }}</p>
+      {% endif %}
+      {% if s.plan_text %}
+      <div class="about-label mb-1">Plan under review</div>
+      <p class="small mb-0 fst-italic text-muted">{{ s.plan_text }}</p>
+      {% endif %}
+    </div>
     {% endif %}
 
+    <div class="about-label mb-1">Key risks identified</div>
     {% if item.risks %}
-    <strong class="small">Identified Risks</strong>
-    <table class="table table-sm table-bordered mt-2 small">
+    <table class="table table-sm table-bordered mt-1 small">
       <thead class="table-light">
         <tr>
           <th>Risk</th>
-          <th class="text-center">Scenario</th>
           <th class="text-center">Severity</th>
           <th class="text-center">Likelihood</th>
           <th>Mitigation</th>
@@ -319,8 +387,12 @@
       <tbody>
         {% for r in item.risks | sort(attribute='severity', reverse=True) %}
         <tr>
-          <td>{{ r.risk_title }}</td>
-          <td class="text-center text-muted small">{{ r.scenario_title if r.scenario_title else '—' }}</td>
+          <td>
+            {{ r.risk_title }}
+            {% if r.scenario_title %}
+            <div class="text-muted" style="font-size:.75em">Scenario: {{ r.scenario_title }}</div>
+            {% endif %}
+          </td>
           <td class="text-center">
             <span class="badge {% if r.severity >= 4 %}bg-danger{% elif r.severity >= 3 %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
               {{ r.severity }}/5
@@ -354,6 +426,18 @@
 <div class="page-break"></div>
 <h4 class="section-title mt-4">Decision Matrix Sessions</h4>
 
+{# Matrix status summary #}
+{% if mx_sessions %}
+<div class="row g-3 mb-4">
+  {% set mx_open    = mx_sessions | selectattr('session.status', 'equalto', 'open')    | list | length %}
+  {% set mx_scoring = mx_sessions | selectattr('session.status', 'equalto', 'scoring') | list | length %}
+  {% set mx_closed  = mx_sessions | selectattr('session.status', 'equalto', 'closed')  | list | length %}
+  <div class="col-4"><div class="stat-box"><div class="num">{{ mx_open }}</div><div class="lbl">Open</div></div></div>
+  <div class="col-4"><div class="stat-box"><div class="num">{{ mx_scoring }}</div><div class="lbl">Scoring</div></div></div>
+  <div class="col-4"><div class="stat-box"><div class="num">{{ mx_closed }}</div><div class="lbl">Closed</div></div></div>
+</div>
+{% endif %}
+
 {% if mx_sessions %}
 {% for item in mx_sessions %}
 {% set s = item.session %}
@@ -368,13 +452,26 @@
     </div>
   </div>
   <div class="card-body">
+
     {% if s.description %}
-    <p class="text-muted small mb-3">{{ s.description }}</p>
+    <div class="mb-3">
+      <div class="about-label mb-1">Decision to make</div>
+      <p class="mb-0 small">{{ s.description }}</p>
+    </div>
     {% endif %}
 
     {% if item.results %}
-    <strong class="small">Ranked Options</strong>
-    <table class="table table-sm table-bordered mt-2 small">
+    <div class="mb-3">
+      <div class="about-label mb-1">Recommended option</div>
+      <div class="outcome-box {% if s.status != 'closed' %}warning{% endif %}">
+        <strong>{{ item.results[0].option_text }}</strong>
+        <span class="text-muted small ms-2">weighted score: {{ item.results[0].weighted_avg }}</span>
+        {% if s.status != 'closed' %}<span class="badge bg-warning text-dark ms-2">scoring in progress</span>{% endif %}
+      </div>
+    </div>
+
+    <div class="about-label mb-1">Full ranking</div>
+    <table class="table table-sm table-bordered mt-1 small">
       <thead class="table-light">
         <tr>
           <th>#</th>
@@ -389,7 +486,7 @@
         {% for r in item.results %}
         <tr {% if loop.first %}class="table-success"{% endif %}>
           <td class="fw-semibold">{{ loop.index }}</td>
-          <td>{{ r.option_text }}{% if loop.first %} <span class="badge bg-success ms-1">Top</span>{% endif %}</td>
+          <td>{{ r.option_text }}</td>
           <td class="text-center fw-semibold">{{ r.weighted_avg }}</td>
           {% for c in item.criteria %}
           {% set vals = r.raw_scores.get(c.id, []) %}
@@ -417,6 +514,18 @@
 <div class="page-break"></div>
 <h4 class="section-title mt-4">Six Thinking Hats Sessions</h4>
 
+{# Six Hats status summary #}
+{% if sh_sessions %}
+<div class="row g-3 mb-4">
+  {% set sh_pending  = sh_sessions | selectattr('session.status', 'equalto', 'pending')  | list | length %}
+  {% set sh_active   = sh_sessions | selectattr('session.status', 'equalto', 'active')   | list | length %}
+  {% set sh_complete = sh_sessions | selectattr('session.status', 'equalto', 'complete') | list | length %}
+  <div class="col-4"><div class="stat-box"><div class="num">{{ sh_pending }}</div><div class="lbl">Pending</div></div></div>
+  <div class="col-4"><div class="stat-box"><div class="num">{{ sh_active }}</div><div class="lbl">Active</div></div></div>
+  <div class="col-4"><div class="stat-box"><div class="num">{{ sh_complete }}</div><div class="lbl">Complete</div></div></div>
+</div>
+{% endif %}
+
 {% if sh_sessions %}
 {% for item in sh_sessions %}
 {% set s = item.session %}
@@ -431,11 +540,19 @@
     </div>
   </div>
   <div class="card-body">
+
     {% if s.description %}
-    <p class="text-muted small mb-3">{{ s.description }}</p>
+    <div class="mb-3">
+      <div class="about-label mb-1">Topic under discussion</div>
+      <p class="mb-0 small">{{ s.description }}</p>
+    </div>
     {% endif %}
 
+    <div class="about-label mb-1">Contributions by hat</div>
     {% if item.hats %}
+    {% set has_any = [] %}
+    {% for hat in item.hats %}{% if hat.contributions %}{% set _ = has_any.append(1) %}{% endif %}{% endfor %}
+    {% if has_any %}
     {% for hat in item.hats %}
     {% if hat.contributions %}
     <div class="mb-3">
@@ -443,7 +560,7 @@
         <span class="badge" style="background:{{ {'white':'#6c757d','red':'#dc3545','black':'#212529','yellow':'#ffc107','green':'#198754','blue':'#0d6efd'}.get(hat.hat_name, '#6c757d') }}; color:{{ 'black' if hat.hat_name in ['white','yellow'] else 'white' }}">
           {{ hat.hat_name | title }} Hat
         </span>
-        <span class="badge bg-light text-dark border">{{ hat.contributions | length }} contribution{{ 's' if hat.contributions | length != 1 }}</span>
+        <span class="text-muted small">{{ hat.contributions | length }} contribution{{ 's' if hat.contributions | length != 1 }}</span>
       </div>
       <ul class="mb-0 small ps-3">
         {% for c in hat.contributions %}
@@ -453,7 +570,7 @@
     </div>
     {% endif %}
     {% endfor %}
-    {% if not item.hats | selectattr('contributions') | list %}
+    {% else %}
     <p class="text-muted small mb-0">No contributions recorded yet.</p>
     {% endif %}
     {% else %}
