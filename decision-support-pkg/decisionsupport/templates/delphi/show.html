@@ -292,8 +292,20 @@
 
   </div>{# end col-lg-8 #}
 
-  {# ---- Right column: notes ---- #}
+  {# ---- Right column: how it works + notes ---- #}
   <div class="col-lg-4">
+    <div class="card mb-4">
+      <div class="card-header fw-medium">How it works</div>
+      <div class="card-body small text-muted">
+        <ol class="ps-3 mb-0">
+          <li class="mb-2"><strong>Setup:</strong> Define your question and add propositions &mdash; the statements participants will rate.</li>
+          <li class="mb-2"><strong>Open a round:</strong> Share the participant link. Participants submit responses and rate each proposition 1&ndash;9.</li>
+          <li class="mb-2"><strong>Close &amp; review:</strong> Close the round to see median scores and IQR. Items with IQR &le; {{ session.consensus_threshold }} have reached consensus.</li>
+          <li class="mb-2"><strong>Repeat:</strong> If consensus isn&rsquo;t reached, open another round and share the previous round&rsquo;s summary to help participants converge.</li>
+          <li><strong>Close:</strong> When consensus is reached (or you&rsquo;re satisfied), close the session and review results.</li>
+        </ol>
+      </div>
+    </div>
     <div class="card">
       <div class="card-header fw-medium">Notes <span class="badge bg-light text-dark border ms-1">{{ notes | length }}</span></div>
       <div class="card-body p-2">

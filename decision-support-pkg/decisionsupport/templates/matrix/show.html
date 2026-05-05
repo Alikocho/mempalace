@@ -192,8 +192,19 @@
 
   </div>{# end col-lg-8 #}
 
-  {# ---- Right: summary ---- #}
+  {# ---- Right: how it works + summary ---- #}
   <div class="col-lg-4">
+    <div class="card mb-4">
+      <div class="card-header fw-medium">How it works</div>
+      <div class="card-body small text-muted">
+        <ol class="ps-3 mb-0">
+          <li class="mb-2"><strong>Setup:</strong> Add the options being compared and the criteria they&rsquo;ll be judged on. Set weights (1&ndash;{{ weight_max }}) to reflect how important each criterion is.</li>
+          <li class="mb-2"><strong>Scoring:</strong> Set status to &ldquo;Scoring&rdquo; and share the participant link. Participants score each option against each criterion (1&ndash;{{ score_max }}). Weights are hidden from participants.</li>
+          <li class="mb-2"><strong>Review:</strong> Weighted average scores are calculated automatically. The top-scoring option is the recommendation.</li>
+          <li><strong>Close:</strong> Set status to &ldquo;Closed&rdquo; to lock the results for reporting.</li>
+        </ol>
+      </div>
+    </div>
     <div class="card">
       <div class="card-header fw-medium">Summary</div>
       <div class="card-body small">
