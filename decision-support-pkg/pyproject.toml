@@ -5,6 +5,9 @@ description = "Structured decision support using the Cynefin framework and Delph
 readme = "README.md"
 requires-python = ">=3.9"
 license = "MIT"
+authors = [
+    { name = "Alastair Kocho-Williams" },
+]
 keywords = ["cynefin", "delphi", "decision", "decision-support", "consensus", "framework"]
 classifiers = [
     "Development Status :: 4 - Beta",

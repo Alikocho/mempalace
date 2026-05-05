@@ -532,3 +532,12 @@ Procfile                Gunicorn start command (Heroku / Railway)
 railway.toml            Railway deployment configuration
 pyproject.toml          Package metadata and dependencies
 ```
+
+
+---
+
+## License
+
+MIT License &copy; 2025 [Alastair Kocho-Williams](https://github.com/alikocho)
+
+See [LICENSE](LICENSE) for the full text.
