@@ -46,28 +46,40 @@
 
 {# ── Summary strip ────────────────────────────────── #}
 <div class="row g-3 mb-5">
-  <div class="col-6 col-md-3">
+  <div class="col-6 col-md-2">
     <div class="stat-box">
       <div class="num">{{ total_decisions }}</div>
-      <div class="lbl">Decisions</div>
+      <div class="lbl">Cynefin</div>
     </div>
   </div>
-  <div class="col-6 col-md-3">
-    <div class="stat-box">
-      <div class="num">{{ status_counts.decided }}</div>
-      <div class="lbl">Decided</div>
-    </div>
-  </div>
-  <div class="col-6 col-md-3">
+  <div class="col-6 col-md-2">
     <div class="stat-box">
       <div class="num">{{ total_sessions }}</div>
-      <div class="lbl">Delphi Sessions</div>
+      <div class="lbl">Delphi</div>
     </div>
   </div>
-  <div class="col-6 col-md-3">
+  <div class="col-6 col-md-2">
+    <div class="stat-box">
+      <div class="num">{{ pm_sessions | length }}</div>
+      <div class="lbl">Pre-Mortems</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="stat-box">
+      <div class="num">{{ mx_sessions | length }}</div>
+      <div class="lbl">Matrices</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="stat-box">
+      <div class="num">{{ sh_sessions | length }}</div>
+      <div class="lbl">6 Hats</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
     <div class="stat-box">
       <div class="num">{{ consensus_count }}</div>
-      <div class="lbl">Consensus Reached</div>
+      <div class="lbl">Consensus</div>
     </div>
   </div>
 </div>
@@ -266,6 +278,194 @@
 {% endfor %}
 {% else %}
 <p class="text-muted">No Delphi sessions recorded yet.</p>
+{% endif %}
+
+{# ══════════════════════════════════════════════════════
+   PRE-MORTEM
+══════════════════════════════════════════════════════ #}
+<div class="page-break"></div>
+<h4 class="section-title mt-4">Pre-Mortem Sessions</h4>
+
+{% if pm_sessions %}
+{% for item in pm_sessions %}
+{% set s = item.session %}
+<div class="card mb-4">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span class="fw-semibold">{{ s.title }}</span>
+    <div class="d-flex gap-2">
+      <span class="badge bg-secondary">{{ item.scenario_count }} scenario{{ 's' if item.scenario_count != 1 }}</span>
+      <span class="badge {% if s.status == 'complete' %}bg-success{% elif s.status == 'brainstorming' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+        {{ s.status | title }}
+      </span>
+    </div>
+  </div>
+  <div class="card-body">
+    {% if s.description %}
+    <p class="text-muted small mb-3">{{ s.description }}</p>
+    {% endif %}
+
+    {% if item.risks %}
+    <strong class="small">Identified Risks</strong>
+    <table class="table table-sm table-bordered mt-2 small">
+      <thead class="table-light">
+        <tr>
+          <th>Risk</th>
+          <th class="text-center">Scenario</th>
+          <th class="text-center">Severity</th>
+          <th class="text-center">Likelihood</th>
+          <th>Mitigation</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in item.risks | sort(attribute='severity', reverse=True) %}
+        <tr>
+          <td>{{ r.risk_title }}</td>
+          <td class="text-center text-muted small">{{ r.scenario_title if r.scenario_title else '—' }}</td>
+          <td class="text-center">
+            <span class="badge {% if r.severity >= 4 %}bg-danger{% elif r.severity >= 3 %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+              {{ r.severity }}/5
+            </span>
+          </td>
+          <td class="text-center">
+            <span class="badge {% if r.likelihood >= 4 %}bg-danger{% elif r.likelihood >= 3 %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+              {{ r.likelihood }}/5
+            </span>
+          </td>
+          <td class="small text-muted">{{ r.mitigation if r.mitigation else '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="text-muted small mb-0">No risks recorded yet.</p>
+    {% endif %}
+
+    <div class="mt-2 small text-muted">Created {{ s.created_at[:10] }}</div>
+  </div>
+</div>
+{% endfor %}
+{% else %}
+<p class="text-muted">No Pre-Mortem sessions recorded yet.</p>
+{% endif %}
+
+{# ══════════════════════════════════════════════════════
+   DECISION MATRIX
+══════════════════════════════════════════════════════ #}
+<div class="page-break"></div>
+<h4 class="section-title mt-4">Decision Matrix Sessions</h4>
+
+{% if mx_sessions %}
+{% for item in mx_sessions %}
+{% set s = item.session %}
+<div class="card mb-4">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span class="fw-semibold">{{ s.title }}</span>
+    <div class="d-flex gap-2">
+      <span class="badge bg-secondary">{{ item.results | length }} option{{ 's' if item.results | length != 1 }}</span>
+      <span class="badge {% if s.status == 'closed' %}bg-success{% elif s.status == 'scoring' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+        {{ s.status | title }}
+      </span>
+    </div>
+  </div>
+  <div class="card-body">
+    {% if s.description %}
+    <p class="text-muted small mb-3">{{ s.description }}</p>
+    {% endif %}
+
+    {% if item.results %}
+    <strong class="small">Ranked Options</strong>
+    <table class="table table-sm table-bordered mt-2 small">
+      <thead class="table-light">
+        <tr>
+          <th>#</th>
+          <th>Option</th>
+          <th class="text-center">Weighted Score</th>
+          {% for c in item.criteria %}
+          <th class="text-center text-muted">{{ c.name }} (w={{ c.weight }})</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in item.results %}
+        <tr {% if loop.first %}class="table-success"{% endif %}>
+          <td class="fw-semibold">{{ loop.index }}</td>
+          <td>{{ r.option_text }}{% if loop.first %} <span class="badge bg-success ms-1">Top</span>{% endif %}</td>
+          <td class="text-center fw-semibold">{{ r.weighted_avg }}</td>
+          {% for c in item.criteria %}
+          {% set vals = r.raw_scores.get(c.id, []) %}
+          <td class="text-center text-muted">{{ (vals | sum / vals | length) | round(1) if vals else '—' }}</td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="text-muted small mb-0">No scores recorded yet.</p>
+    {% endif %}
+
+    <div class="mt-2 small text-muted">Created {{ s.created_at[:10] }}</div>
+  </div>
+</div>
+{% endfor %}
+{% else %}
+<p class="text-muted">No Decision Matrix sessions recorded yet.</p>
+{% endif %}
+
+{# ══════════════════════════════════════════════════════
+   SIX THINKING HATS
+══════════════════════════════════════════════════════ #}
+<div class="page-break"></div>
+<h4 class="section-title mt-4">Six Thinking Hats Sessions</h4>
+
+{% if sh_sessions %}
+{% for item in sh_sessions %}
+{% set s = item.session %}
+<div class="card mb-4">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span class="fw-semibold">{{ s.title }}</span>
+    <div class="d-flex gap-2">
+      <span class="badge bg-secondary">{{ item.contribution_count }} contribution{{ 's' if item.contribution_count != 1 }}</span>
+      <span class="badge {% if s.status == 'complete' %}bg-success{% elif s.status == 'active' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+        {{ s.status | title }}
+      </span>
+    </div>
+  </div>
+  <div class="card-body">
+    {% if s.description %}
+    <p class="text-muted small mb-3">{{ s.description }}</p>
+    {% endif %}
+
+    {% if item.hats %}
+    {% for hat in item.hats %}
+    {% if hat.contributions %}
+    <div class="mb-3">
+      <div class="d-flex align-items-center gap-2 mb-1">
+        <span class="badge" style="background:{{ {'white':'#6c757d','red':'#dc3545','black':'#212529','yellow':'#ffc107','green':'#198754','blue':'#0d6efd'}.get(hat.hat_name, '#6c757d') }}; color:{{ 'black' if hat.hat_name in ['white','yellow'] else 'white' }}">
+          {{ hat.hat_name | title }} Hat
+        </span>
+        <span class="badge bg-light text-dark border">{{ hat.contributions | length }} contribution{{ 's' if hat.contributions | length != 1 }}</span>
+      </div>
+      <ul class="mb-0 small ps-3">
+        {% for c in hat.contributions %}
+        <li class="mb-1">{{ c.content }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+    {% endfor %}
+    {% if not item.hats | selectattr('contributions') | list %}
+    <p class="text-muted small mb-0">No contributions recorded yet.</p>
+    {% endif %}
+    {% else %}
+    <p class="text-muted small mb-0">No hat data available.</p>
+    {% endif %}
+
+    <div class="mt-2 small text-muted">Created {{ s.created_at[:10] }}</div>
+  </div>
+</div>
+{% endfor %}
+{% else %}
+<p class="text-muted">No Six Thinking Hats sessions recorded yet.</p>
 {% endif %}
 
 {% endblock %}

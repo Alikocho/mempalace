@@ -249,8 +249,12 @@ def results():
     sh_detail = []
     for s in sh_sessions:
         hats = shdb.get_hats(s["id"])
-        contributions = shdb.get_contributions(s["id"])
-        sh_detail.append({"session": s, "hats": hats, "contribution_count": len(contributions)})
+        all_contributions = shdb.get_contributions(s["id"])
+        contrib_by_hat = {}
+        for c in all_contributions:
+            contrib_by_hat.setdefault(c["hat_id"], []).append(c)
+        hats_with_contribs = [dict(h, contributions=contrib_by_hat.get(h["id"], [])) for h in hats]
+        sh_detail.append({"session": s, "hats": hats_with_contribs, "contribution_count": len(all_contributions)})
 
     return render_template(
         "results.html",

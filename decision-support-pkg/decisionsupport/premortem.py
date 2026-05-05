@@ -219,7 +219,11 @@ class PreMortemDB:
     def get_risks(self, session_id: str) -> List[dict]:
         with self._lock:
             rows = self._connection().execute(
-                "SELECT * FROM pm_risks WHERE session_id = ? ORDER BY severity DESC, likelihood DESC",
+                """SELECT r.*, s.scenario_text AS scenario_title
+                   FROM pm_risks r
+                   LEFT JOIN pm_scenarios s ON s.id = r.scenario_id
+                   WHERE r.session_id = ?
+                   ORDER BY r.severity DESC, r.likelihood DESC""",
                 (session_id,),
             ).fetchall()
         return [dict(r) for r in rows]
