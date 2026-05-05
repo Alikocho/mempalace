@@ -229,8 +229,9 @@ def set_framework_route(name: str):
 @admin_required
 def cynefin_list():
     status = request.args.get("status")
-    decisions = _cdb().list_decisions(status=status or None)
-    return render_template("cynefin/list.html", decisions=decisions, status_filter=status)
+    archived = request.args.get("archived") == "1"
+    decisions = _cdb().list_decisions(status=status or None, include_archived=archived)
+    return render_template("cynefin/list.html", decisions=decisions, status_filter=status, show_archived=archived)
 
 
 @app.route("/cynefin/new", methods=["GET", "POST"])
@@ -342,6 +343,22 @@ def cynefin_status(decision_id: str):
     return redirect(url_for("cynefin_show", decision_id=decision_id))
 
 
+@app.route("/cynefin/<decision_id>/archive", methods=["POST"])
+@admin_required
+def cynefin_archive(decision_id: str):
+    _cdb().set_status(decision_id, "archived")
+    flash("Decision archived.", "info")
+    return redirect(url_for("cynefin_list"))
+
+
+@app.route("/cynefin/<decision_id>/delete", methods=["POST"])
+@admin_required
+def cynefin_delete(decision_id: str):
+    _cdb().delete_decision(decision_id)
+    flash("Decision permanently deleted.", "warning")
+    return redirect(url_for("cynefin_list"))
+
+
 @app.route("/cynefin/import", methods=["GET", "POST"])
 @admin_required
 def cynefin_import():
@@ -396,8 +413,9 @@ def cynefin_ingest(decision_id: str):
 @admin_required
 def delphi_list():
     status = request.args.get("status")
-    sessions = _ddb().list_sessions(status=status or None)
-    return render_template("delphi/list.html", sessions=sessions, status_filter=status)
+    archived = request.args.get("archived") == "1"
+    sessions = _ddb().list_sessions(status=status or None, include_archived=archived)
+    return render_template("delphi/list.html", sessions=sessions, status_filter=status, show_archived=archived)
 
 
 @app.route("/delphi/new", methods=["GET", "POST"])
@@ -549,6 +567,30 @@ def delphi_rate(session_id: str):
     if rated:
         flash(f"{rated} rating(s) recorded", "success")
     return redirect(url_for("delphi_show", session_id=session_id))
+
+
+@app.route("/delphi/<session_id>/archive", methods=["POST"])
+@admin_required
+def delphi_archive(session_id: str):
+    _ddb().set_status(session_id, "archived")
+    flash("Session archived.", "info")
+    return redirect(url_for("delphi_list"))
+
+
+@app.route("/delphi/<session_id>/restore", methods=["POST"])
+@admin_required
+def delphi_restore(session_id: str):
+    _ddb().set_status(session_id, "active")
+    flash("Session restored.", "success")
+    return redirect(url_for("delphi_list"))
+
+
+@app.route("/delphi/<session_id>/delete", methods=["POST"])
+@admin_required
+def delphi_delete(session_id: str):
+    _ddb().delete_session(session_id)
+    flash("Session permanently deleted.", "warning")
+    return redirect(url_for("delphi_list"))
 
 
 @app.route("/delphi/<session_id>/note", methods=["POST"])

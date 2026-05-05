@@ -249,16 +249,20 @@ class DelphiDB:
             ).fetchone()
         return dict(row) if row else None
 
-    def list_sessions(self, status: Optional[str] = None) -> List[dict]:
+    def list_sessions(self, status: Optional[str] = None, include_archived: bool = False) -> List[dict]:
         with self._lock:
             conn = self._connection()
             if status:
                 rows = conn.execute(
                     "SELECT * FROM sessions WHERE status = ? ORDER BY created_at DESC", (status,)
                 ).fetchall()
-            else:
+            elif include_archived:
                 rows = conn.execute(
                     "SELECT * FROM sessions ORDER BY created_at DESC"
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    "SELECT * FROM sessions WHERE status != 'archived' ORDER BY created_at DESC"
                 ).fetchall()
         return [dict(r) for r in rows]
 
@@ -619,6 +623,16 @@ class DelphiDB:
             "notes": self.get_notes(session_id),
             "consensus_summary": self.session_consensus_summary(session_id),
         }
+
+    def delete_session(self, session_id: str) -> None:
+        with self._lock:
+            with self._connection() as conn:
+                conn.execute("DELETE FROM ratings WHERE session_id = ?", (session_id,))
+                conn.execute("DELETE FROM items WHERE session_id = ?", (session_id,))
+                conn.execute("DELETE FROM responses WHERE session_id = ?", (session_id,))
+                conn.execute("DELETE FROM rounds WHERE session_id = ?", (session_id,))
+                conn.execute("DELETE FROM notes WHERE session_id = ?", (session_id,))
+                conn.execute("DELETE FROM sessions WHERE id = ?", (session_id,))
 
     def close(self) -> None:
         with self._lock:

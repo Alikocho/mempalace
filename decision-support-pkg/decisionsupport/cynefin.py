@@ -383,7 +383,7 @@ class CynefinDB:
             ).fetchone()
         return dict(row) if row else None
 
-    def list_decisions(self, status: Optional[str] = None) -> List[dict]:
+    def list_decisions(self, status: Optional[str] = None, include_archived: bool = False) -> List[dict]:
         with self._lock:
             conn = self._connection()
             if status:
@@ -391,9 +391,13 @@ class CynefinDB:
                     "SELECT * FROM decisions WHERE status = ? ORDER BY created_at DESC",
                     (status,),
                 ).fetchall()
-            else:
+            elif include_archived:
                 rows = conn.execute(
                     "SELECT * FROM decisions ORDER BY created_at DESC"
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    "SELECT * FROM decisions WHERE status != 'archived' ORDER BY created_at DESC"
                 ).fetchall()
         return [dict(r) for r in rows]
 
@@ -527,6 +531,14 @@ class CynefinDB:
             "actions": self.get_actions(decision_id),
             "domain_info": DOMAIN_INFO.get(domain, {}),
         }
+
+    def delete_decision(self, decision_id: str) -> None:
+        with self._lock:
+            with self._connection() as conn:
+                conn.execute("DELETE FROM actions WHERE decision_id = ?", (decision_id,))
+                conn.execute("DELETE FROM notes WHERE decision_id = ?", (decision_id,))
+                conn.execute("DELETE FROM assessment_responses WHERE decision_id = ?", (decision_id,))
+                conn.execute("DELETE FROM decisions WHERE id = ?", (decision_id,))
 
     def close(self) -> None:
         with self._lock:

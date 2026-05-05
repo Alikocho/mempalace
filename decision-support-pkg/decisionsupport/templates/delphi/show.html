@@ -38,6 +38,20 @@
             <span class="badge bg-secondary">{{ session.status }}</span><br>
             <span class="small text-muted">Round {{ session.current_round }}</span><br>
             <span class="small text-muted">IQR ≤ {{ session.consensus_threshold }}</span>
+            <div class="mt-2 d-flex gap-1 justify-content-end">
+              <button class="btn btn-sm btn-outline-secondary"
+                      data-confirm-action="{{ url_for('delphi_archive', session_id=session.id) }}"
+                      data-confirm-title="Archive session?"
+                      data-confirm-body="This session will be hidden from the main list but all data is preserved."
+                      data-confirm-label="Archive"
+                      data-confirm-danger="false">Archive</button>
+              <button class="btn btn-sm btn-outline-danger"
+                      data-confirm-action="{{ url_for('delphi_delete', session_id=session.id) }}"
+                      data-confirm-title="Permanently delete?"
+                      data-confirm-body="This session and all responses, ratings, and rounds will be deleted. This cannot be undone."
+                      data-confirm-label="Delete permanently"
+                      data-confirm-danger="true">Delete</button>
+            </div>
           </div>
         </div>
 

@@ -54,7 +54,7 @@
         {% endif %}
 
         {# status change #}
-        <div class="mt-3 d-flex gap-2">
+        <div class="mt-3 d-flex gap-2 align-items-center flex-wrap">
           <form method="post" action="{{ url_for('cynefin_status', decision_id=decision.id) }}">
             <select name="status" class="form-select form-select-sm d-inline-block w-auto" onchange="this.form.submit()">
               {% for s in ['open','decided','closed'] %}
@@ -62,6 +62,18 @@
               {% endfor %}
             </select>
           </form>
+          <button class="btn btn-sm btn-outline-secondary ms-auto"
+                  data-confirm-action="{{ url_for('cynefin_archive', decision_id=decision.id) }}"
+                  data-confirm-title="Archive decision?"
+                  data-confirm-body="This decision will be hidden from the main list but preserved for reporting."
+                  data-confirm-label="Archive"
+                  data-confirm-danger="false">Archive</button>
+          <button class="btn btn-sm btn-outline-danger"
+                  data-confirm-action="{{ url_for('cynefin_delete', decision_id=decision.id) }}"
+                  data-confirm-title="Permanently delete?"
+                  data-confirm-body="This decision and all its responses, notes, and actions will be deleted. This cannot be undone."
+                  data-confirm-label="Delete permanently"
+                  data-confirm-danger="true">Delete</button>
         </div>
       </div>
     </div>

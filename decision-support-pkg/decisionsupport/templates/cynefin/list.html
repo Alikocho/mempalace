@@ -10,15 +10,20 @@
   </div>
 </div>
 
-<div class="mb-3">
+<div class="d-flex justify-content-between align-items-center mb-3">
   <div class="btn-group btn-group-sm" role="group">
     <a href="{{ url_for('cynefin_list') }}"
-       class="btn btn-outline-secondary {% if not status_filter %}active{% endif %}">All</a>
+       class="btn btn-outline-secondary {% if not status_filter and not show_archived %}active{% endif %}">All</a>
     {% for s in ['open','decided','closed'] %}
     <a href="{{ url_for('cynefin_list', status=s) }}"
        class="btn btn-outline-secondary {% if status_filter == s %}active{% endif %}">{{ s | title }}</a>
     {% endfor %}
   </div>
+  {% if show_archived %}
+  <a href="{{ url_for('cynefin_list') }}" class="btn btn-sm btn-outline-secondary">Hide archived</a>
+  {% else %}
+  <a href="{{ url_for('cynefin_list', archived=1) }}" class="btn btn-sm btn-outline-secondary text-muted">Show archived</a>
+  {% endif %}
 </div>
 
 {% if decisions %}
@@ -26,13 +31,12 @@
   <table class="table table-hover mb-0">
     <thead class="table-light">
       <tr>
-        <th>ID</th><th>Title</th><th>Domain</th><th>Status</th><th>Created</th>
+        <th>Title</th><th>Domain</th><th>Status</th><th>Created</th><th></th>
       </tr>
     </thead>
     <tbody>
     {% for d in decisions %}
     <tr>
-      <td><code class="small">{{ d.id }}</code></td>
       <td>
         <a href="{{ url_for('cynefin_show', decision_id=d.id) }}" class="text-decoration-none fw-medium">
           {{ d.title }}
@@ -48,8 +52,35 @@
         <span class="text-muted small">unclassified</span>
         {% endif %}
       </td>
-      <td><span class="badge bg-secondary">{{ d.status }}</span></td>
+      <td>
+        <span class="badge {% if d.status == 'archived' %}bg-light text-dark border{% else %}bg-secondary{% endif %}">
+          {{ d.status }}
+        </span>
+      </td>
       <td class="text-muted small">{{ d.created_at[:10] }}</td>
+      <td class="text-end">
+        <div class="d-flex gap-1 justify-content-end">
+          {% if d.status != 'archived' %}
+          <button class="btn btn-sm btn-outline-secondary"
+                  data-confirm-action="{{ url_for('cynefin_archive', decision_id=d.id) }}"
+                  data-confirm-title="Archive decision?"
+                  data-confirm-body="'{{ d.title }}' will be hidden from the main list but preserved for reporting."
+                  data-confirm-label="Archive"
+                  data-confirm-danger="false">Archive</button>
+          {% else %}
+          <form method="post" action="{{ url_for('cynefin_status', decision_id=d.id) }}" class="d-inline">
+            <input type="hidden" name="status" value="open">
+            <button type="submit" class="btn btn-sm btn-outline-secondary">Restore</button>
+          </form>
+          {% endif %}
+          <button class="btn btn-sm btn-outline-danger"
+                  data-confirm-action="{{ url_for('cynefin_delete', decision_id=d.id) }}"
+                  data-confirm-title="Permanently delete?"
+                  data-confirm-body="'{{ d.title }}' and all its responses, notes, and actions will be deleted. This cannot be undone."
+                  data-confirm-label="Delete permanently"
+                  data-confirm-danger="true">Delete</button>
+        </div>
+      </td>
     </tr>
     {% endfor %}
     </tbody>
