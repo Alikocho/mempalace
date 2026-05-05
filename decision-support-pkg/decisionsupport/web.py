@@ -154,6 +154,11 @@ def health():
     return {"status": "ok"}, 200
 
 
+@app.route("/guide")
+def guide():
+    return render_template("guide.html")
+
+
 # ---------------------------------------------------------------------------
 # Dashboard and framework toggle
 # ---------------------------------------------------------------------------
@@ -164,7 +169,24 @@ def health():
 def index():
     decisions = _cdb().list_decisions()[:6]
     sessions = _ddb().list_sessions()[:6]
-    return render_template("index.html", decisions=decisions, sessions=sessions)
+
+    pm_raw = _pmdb().list_sessions()[:6]
+    pm_sessions = [{"session": s, "scenario_count": len(_pmdb().get_scenarios(s["id"]))} for s in pm_raw]
+
+    mx_raw = _mxdb().list_sessions()[:6]
+    mx_sessions = [{"session": s, "id": s["id"], "title": s["title"], "option_count": len(_mxdb().get_options(s["id"]))} for s in mx_raw]
+
+    sh_raw = _shdb().list_sessions()[:6]
+    sh_sessions = [{"session": s, "id": s["id"], "title": s["title"], "current_hat": s.get("current_hat")} for s in sh_raw]
+
+    return render_template(
+        "index.html",
+        decisions=decisions,
+        sessions=sessions,
+        pm_sessions=pm_sessions,
+        mx_sessions=mx_sessions,
+        sh_sessions=sh_sessions,
+    )
 
 
 @app.route("/results")

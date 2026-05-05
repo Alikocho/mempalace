@@ -32,18 +32,20 @@
     </button>
     <div class="collapse navbar-collapse" id="mainNav">
       <div class="navbar-nav flex-row flex-wrap gap-2 ms-auto align-items-center mt-2 mt-lg-0">
-        <a class="nav-link text-white-50 {% if request.path.startswith('/cynefin') %}text-white fw-semibold{% endif %}"
+        <a class="nav-link text-white opacity-75 {% if request.path.startswith('/cynefin') %}text-white fw-semibold{% endif %}"
            href="{{ url_for('cynefin_list') }}">Cynefin</a>
-        <a class="nav-link text-white-50 {% if request.path.startswith('/delphi') %}text-white fw-semibold{% endif %}"
+        <a class="nav-link text-white opacity-75 {% if request.path.startswith('/delphi') %}text-white fw-semibold{% endif %}"
            href="{{ url_for('delphi_list') }}">Delphi</a>
-        <a class="nav-link text-white-50 {% if request.path.startswith('/premortem') %}text-white fw-semibold{% endif %}"
+        <a class="nav-link text-white opacity-75 {% if request.path.startswith('/premortem') %}text-white fw-semibold{% endif %}"
            href="{{ url_for('premortem_list') }}">Pre-Mortem</a>
-        <a class="nav-link text-white-50 {% if request.path.startswith('/matrix') %}text-white fw-semibold{% endif %}"
+        <a class="nav-link text-white opacity-75 {% if request.path.startswith('/matrix') %}text-white fw-semibold{% endif %}"
            href="{{ url_for('matrix_list') }}">Matrix</a>
-        <a class="nav-link text-white-50 {% if request.path.startswith('/sixhats') %}text-white fw-semibold{% endif %}"
+        <a class="nav-link text-white opacity-75 {% if request.path.startswith('/sixhats') %}text-white fw-semibold{% endif %}"
            href="{{ url_for('sixhats_list') }}">6 Hats</a>
-        <a class="nav-link text-white-50 {% if request.path == '/results' %}text-white fw-semibold{% endif %}"
+        <a class="nav-link text-white opacity-75 {% if request.path == '/results' %}text-white fw-semibold{% endif %}"
            href="{{ url_for('results') }}">Results</a>
+        <a class="nav-link text-white opacity-75 {% if request.path == '/guide' %}text-white fw-semibold{% endif %}"
+           href="{{ url_for('guide') }}">Guide</a>
         {% if admin_secret_set %}
         <form method="post" action="{{ url_for('admin_logout') }}" class="d-inline ms-1">
           <button type="submit" class="btn btn-sm btn-outline-danger fw-toggle-btn">Logout</button>
