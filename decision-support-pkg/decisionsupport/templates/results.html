@@ -52,46 +52,40 @@
 
 {# ── Summary strip ────────────────────────────────── #}
 <div class="row g-3 mb-5">
-  <div class="col-6 col-sm-4 col-lg-3">
+  <div class="col-6 col-md-2">
     <div class="stat-box">
       <div class="num">{{ total_decisions }}</div>
       <div class="lbl">Cynefin</div>
     </div>
   </div>
-  <div class="col-6 col-sm-4 col-lg-3">
+  <div class="col-6 col-md-2">
     <div class="stat-box">
       <div class="num">{{ total_sessions }}</div>
       <div class="lbl">Delphi</div>
     </div>
   </div>
-  <div class="col-6 col-sm-4 col-lg-3">
+  <div class="col-6 col-md-2">
     <div class="stat-box">
       <div class="num">{{ pm_sessions | length }}</div>
       <div class="lbl">Pre-Mortems</div>
     </div>
   </div>
-  <div class="col-6 col-sm-4 col-lg-3">
+  <div class="col-6 col-md-2">
     <div class="stat-box">
       <div class="num">{{ mx_sessions | length }}</div>
       <div class="lbl">Matrices</div>
     </div>
   </div>
-  <div class="col-6 col-sm-4 col-lg-3">
+  <div class="col-6 col-md-2">
     <div class="stat-box">
       <div class="num">{{ sh_sessions | length }}</div>
       <div class="lbl">6 Hats</div>
     </div>
   </div>
-  <div class="col-6 col-sm-4 col-lg-3">
+  <div class="col-6 col-md-2">
     <div class="stat-box">
-      <div class="num">{{ swot_sessions | length }}</div>
-      <div class="lbl">SWOT</div>
-    </div>
-  </div>
-  <div class="col-6 col-sm-4 col-lg-3">
-    <div class="stat-box">
-      <div class="num">{{ pestle_sessions | length }}</div>
-      <div class="lbl">PESTLE</div>
+      <div class="num">{{ consensus_count }}</div>
+      <div class="lbl">Consensus</div>
     </div>
   </div>
 </div>
@@ -589,150 +583,6 @@
 {% endfor %}
 {% else %}
 <p class="text-muted">No Six Thinking Hats sessions recorded yet.</p>
-{% endif %}
-
-{# ══════════════════════════════════════════════════════
-   SWOT
-══════════════════════════════════════════════════════ #}
-<div class="page-break"></div>
-<h4 class="section-title mt-4">SWOT Analysis Sessions</h4>
-
-{% if swot_sessions %}
-<div class="row g-3 mb-4">
-  {% set swot_setup  = swot_sessions | selectattr('session.status', 'equalto', 'setup')  | list | length %}
-  {% set swot_open   = swot_sessions | selectattr('session.status', 'equalto', 'open')   | list | length %}
-  {% set swot_closed = swot_sessions | selectattr('session.status', 'equalto', 'closed') | list | length %}
-  <div class="col-4"><div class="stat-box"><div class="num">{{ swot_setup }}</div><div class="lbl">Setup</div></div></div>
-  <div class="col-4"><div class="stat-box"><div class="num">{{ swot_open }}</div><div class="lbl">Open</div></div></div>
-  <div class="col-4"><div class="stat-box"><div class="num">{{ swot_closed }}</div><div class="lbl">Closed</div></div></div>
-</div>
-{% endif %}
-
-{% if swot_sessions %}
-{% for item in swot_sessions %}
-{% set s = item.session %}
-<div class="card mb-4">
-  <div class="card-header d-flex justify-content-between align-items-center">
-    <span class="fw-semibold">{{ s.title }}</span>
-    <div class="d-flex gap-2">
-      <span class="badge bg-secondary">{{ item.item_count }} item{{ 's' if item.item_count != 1 }}</span>
-      <span class="badge {% if s.status == 'closed' %}bg-success{% elif s.status == 'open' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
-        {{ s.status | title }}
-      </span>
-    </div>
-  </div>
-  <div class="card-body">
-
-    {% if s.description %}
-    <div class="mb-3">
-      <div class="about-label mb-1">Context / decision under analysis</div>
-      <p class="mb-0 small">{{ s.description }}</p>
-    </div>
-    {% endif %}
-
-    {% set ibc = item.items_by_category %}
-    {% if item.item_count > 0 %}
-    <div class="row g-2 mb-3">
-      {% for cat in swot_categories %}
-      {% set info = swot_category_info[cat] %}
-      {% set cat_items = ibc.get(cat, []) %}
-      {% if cat_items %}
-      <div class="col-md-6">
-        <div class="about-label mb-1">{{ info.icon }} {{ info.label }}</div>
-        <ul class="mb-0 small ps-3">
-          {% for it in cat_items[:5] %}
-          <li>{{ it.content }}</li>
-          {% endfor %}
-          {% if cat_items | length > 5 %}
-          <li class="text-muted">… {{ cat_items | length - 5 }} more</li>
-          {% endif %}
-        </ul>
-      </div>
-      {% endif %}
-      {% endfor %}
-    </div>
-    {% else %}
-    <p class="text-muted small mb-2">No items recorded yet.</p>
-    {% endif %}
-
-    <div class="mt-2 small text-muted">Created {{ s.created_at[:10] }}</div>
-  </div>
-</div>
-{% endfor %}
-{% else %}
-<p class="text-muted">No SWOT sessions recorded yet.</p>
-{% endif %}
-
-{# ══════════════════════════════════════════════════════
-   PESTLE
-══════════════════════════════════════════════════════ #}
-<div class="page-break"></div>
-<h4 class="section-title mt-4">PESTLE Analysis Sessions</h4>
-
-{% if pestle_sessions %}
-<div class="row g-3 mb-4">
-  {% set pestle_setup  = pestle_sessions | selectattr('session.status', 'equalto', 'setup')  | list | length %}
-  {% set pestle_open   = pestle_sessions | selectattr('session.status', 'equalto', 'open')   | list | length %}
-  {% set pestle_closed = pestle_sessions | selectattr('session.status', 'equalto', 'closed') | list | length %}
-  <div class="col-4"><div class="stat-box"><div class="num">{{ pestle_setup }}</div><div class="lbl">Setup</div></div></div>
-  <div class="col-4"><div class="stat-box"><div class="num">{{ pestle_open }}</div><div class="lbl">Open</div></div></div>
-  <div class="col-4"><div class="stat-box"><div class="num">{{ pestle_closed }}</div><div class="lbl">Closed</div></div></div>
-</div>
-{% endif %}
-
-{% if pestle_sessions %}
-{% for item in pestle_sessions %}
-{% set s = item.session %}
-<div class="card mb-4">
-  <div class="card-header d-flex justify-content-between align-items-center">
-    <span class="fw-semibold">{{ s.title }}</span>
-    <div class="d-flex gap-2">
-      <span class="badge bg-secondary">{{ item.item_count }} item{{ 's' if item.item_count != 1 }}</span>
-      <span class="badge {% if s.status == 'closed' %}bg-success{% elif s.status == 'open' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
-        {{ s.status | title }}
-      </span>
-    </div>
-  </div>
-  <div class="card-body">
-
-    {% if s.description %}
-    <div class="mb-3">
-      <div class="about-label mb-1">Context / strategic decision being scanned</div>
-      <p class="mb-0 small">{{ s.description }}</p>
-    </div>
-    {% endif %}
-
-    {% set ibc = item.items_by_category %}
-    {% if item.item_count > 0 %}
-    <div class="row g-2 mb-3">
-      {% for cat in pestle_categories %}
-      {% set info = pestle_category_info[cat] %}
-      {% set cat_items = ibc.get(cat, []) %}
-      {% if cat_items %}
-      <div class="col-md-6">
-        <div class="about-label mb-1">{{ info.icon }} {{ info.label }}</div>
-        <ul class="mb-0 small ps-3">
-          {% for it in cat_items[:5] %}
-          <li>{{ it.content }}</li>
-          {% endfor %}
-          {% if cat_items | length > 5 %}
-          <li class="text-muted">… {{ cat_items | length - 5 }} more</li>
-          {% endif %}
-        </ul>
-      </div>
-      {% endif %}
-      {% endfor %}
-    </div>
-    {% else %}
-    <p class="text-muted small mb-2">No items recorded yet.</p>
-    {% endif %}
-
-    <div class="mt-2 small text-muted">Created {{ s.created_at[:10] }}</div>
-  </div>
-</div>
-{% endfor %}
-{% else %}
-<p class="text-muted">No PESTLE sessions recorded yet.</p>
 {% endif %}
 
 {% endblock %}

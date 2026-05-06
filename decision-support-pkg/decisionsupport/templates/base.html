@@ -42,10 +42,6 @@
            href="{{ url_for('matrix_list') }}">Matrix</a>
         <a class="nav-link text-white opacity-75 {% if request.path.startswith('/sixhats') %}text-white fw-semibold{% endif %}"
            href="{{ url_for('sixhats_list') }}">6 Hats</a>
-        <a class="nav-link text-white opacity-75 {% if request.path.startswith('/swot') %}text-white fw-semibold{% endif %}"
-           href="{{ url_for('swot_list') }}">SWOT</a>
-        <a class="nav-link text-white opacity-75 {% if request.path.startswith('/pestle') %}text-white fw-semibold{% endif %}"
-           href="{{ url_for('pestle_list') }}">PESTLE</a>
         <a class="nav-link text-white opacity-75 {% if request.path == '/results' %}text-white fw-semibold{% endif %}"
            href="{{ url_for('results') }}">Results</a>
         <a class="nav-link text-white opacity-75 {% if request.path == '/guide' %}text-white fw-semibold{% endif %}"
