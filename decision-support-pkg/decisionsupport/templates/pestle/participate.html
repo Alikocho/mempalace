@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}PESTLE — {{ session.title }}{% endblock %}
+{% block content %}
+
+<div class="row justify-content-center">
+  <div class="col-md-8">
+
+    <div class="card mb-4">
+      <div class="card-header"><span class="badge bg-dark me-2">PESTLE</span> <strong>{{ session.title }}</strong></div>
+      <div class="card-body">
+        {% if session.description %}
+        <p class="text-muted mb-0">{{ session.description }}</p>
+        {% else %}
+        <p class="text-muted mb-0 small">Add relevant factors to any of the six categories below.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if session.status != 'open' %}
+    <div class="alert alert-secondary text-center">
+      This session is not currently accepting contributions.
+    </div>
+    {% else %}
+
+    <form method="post" action="{{ url_for('pestle_participate_submit', session_id=session.id) }}">
+      <div class="mb-3">
+        <label class="form-label fw-medium">Your name <span class="text-muted small">(optional)</span></label>
+        <input type="text" class="form-control" name="submitted_by" placeholder="Anonymous">
+      </div>
+
+      {% for cat in categories %}
+      {% set info = category_info[cat] %}
+      <div class="card mb-3">
+        <div class="card-header bg-{{ info.color_class }} {% if info.text_color == 'white' %}text-white{% else %}text-dark{% endif %} fw-semibold">
+          {{ info.icon }} {{ info.label }}
+        </div>
+        <div class="card-body">
+          <p class="text-muted small mb-2">{{ info.prompt }}</p>
+          <textarea class="form-control form-control-sm" name="cat_{{ cat }}" rows="3"
+                    placeholder="One item per line, or leave blank…"></textarea>
+          <div class="form-text">Enter one item per line. Leave blank to skip this category.</div>
+        </div>
+      </div>
+      {% endfor %}
+
+      <div class="d-grid mt-4">
+        <button type="submit" class="btn btn-dark btn-lg">Submit contributions</button>
+      </div>
+    </form>
+
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

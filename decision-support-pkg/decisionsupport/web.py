@@ -40,6 +40,8 @@ from .delphi import DEFAULT_CONSENSUS_THRESHOLD, RATING_MAX, RATING_MIN, DelphiD
 from .premortem import LIKELIHOOD_LABELS, SEVERITY_LABELS, PreMortemDB
 from .decision_matrix import SCORE_MAX, SCORE_MIN, WEIGHT_MAX, WEIGHT_MIN, DecisionMatrixDB, compute_results
 from .sixhats import HAT_INFO, HATS_ORDER, SixHatsDB
+from .swot import CATEGORIES as SWOT_CATEGORIES, CATEGORY_INFO as SWOT_CATEGORY_INFO, SwotDB
+from .pestle import CATEGORIES as PESTLE_CATEGORIES, CATEGORY_INFO as PESTLE_CATEGORY_INFO, PestleDB
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -53,6 +55,8 @@ _DELPHI_DB_PATH = str(DATA_DIR / "delphi.db")
 _PREMORTEM_DB_PATH = str(DATA_DIR / "premortem.db")
 _MATRIX_DB_PATH = str(DATA_DIR / "decision_matrix.db")
 _SIXHATS_DB_PATH = str(DATA_DIR / "sixhats.db")
+_SWOT_DB_PATH = str(DATA_DIR / "swot.db")
+_PESTLE_DB_PATH = str(DATA_DIR / "pestle.db")
 _FRAMEWORK_CONFIG = DATA_DIR / "decision_framework"
 
 ADMIN_SECRET = os.environ.get("ADMIN_SECRET", "")
@@ -134,6 +138,14 @@ def _shdb() -> SixHatsDB:
     return SixHatsDB(db_path=_SIXHATS_DB_PATH)
 
 
+def _swotdb() -> SwotDB:
+    return SwotDB(db_path=_SWOT_DB_PATH)
+
+
+def _pestledb() -> PestleDB:
+    return PestleDB(db_path=_PESTLE_DB_PATH)
+
+
 def _fw() -> str:
     return get_framework(config_path=_FRAMEWORK_CONFIG)
 
@@ -178,6 +190,12 @@ def index():
     sh_raw = _shdb().list_sessions()[:6]
     sh_sessions = [{"session": s, "id": s["id"], "title": s["title"], "current_hat": s.get("current_hat")} for s in sh_raw]
 
+    swot_raw = _swotdb().list_sessions()[:6]
+    swot_sessions = [{"session": s, "item_count": len(_swotdb().get_items(s["id"]))} for s in swot_raw]
+
+    pestle_raw = _pestledb().list_sessions()[:6]
+    pestle_sessions = [{"session": s, "item_count": len(_pestledb().get_items(s["id"]))} for s in pestle_raw]
+
     return render_template(
         "index.html",
         decisions=decisions,
@@ -185,6 +203,8 @@ def index():
         pm_sessions=pm_sessions,
         mx_sessions=mx_sessions,
         sh_sessions=sh_sessions,
+        swot_sessions=swot_sessions,
+        pestle_sessions=pestle_sessions,
     )
 
 
@@ -256,6 +276,26 @@ def results():
         hats_with_contribs = [dict(h, contributions=contrib_by_hat.get(h["id"], [])) for h in hats]
         sh_detail.append({"session": s, "hats": hats_with_contribs, "contribution_count": len(all_contributions)})
 
+    swotdb = _swotdb()
+    swot_sessions_raw = swotdb.list_sessions()
+    swot_detail = []
+    for s in swot_sessions_raw:
+        items = swotdb.get_items(s["id"])
+        by_cat = {}
+        for item in items:
+            by_cat.setdefault(item["category"], []).append(item)
+        swot_detail.append({"session": s, "items_by_category": by_cat, "item_count": len(items)})
+
+    pestledb = _pestledb()
+    pestle_sessions_raw = pestledb.list_sessions()
+    pestle_detail = []
+    for s in pestle_sessions_raw:
+        items = pestledb.get_items(s["id"])
+        by_cat = {}
+        for item in items:
+            by_cat.setdefault(item["category"], []).append(item)
+        pestle_detail.append({"session": s, "items_by_category": by_cat, "item_count": len(items)})
+
     return render_template(
         "results.html",
         decisions=decisions_detail,
@@ -269,6 +309,12 @@ def results():
         pm_sessions=pm_detail,
         mx_sessions=mx_detail,
         sh_sessions=sh_detail,
+        swot_sessions=swot_detail,
+        pestle_sessions=pestle_detail,
+        swot_category_info=SWOT_CATEGORY_INFO,
+        swot_categories=SWOT_CATEGORIES,
+        pestle_category_info=PESTLE_CATEGORY_INFO,
+        pestle_categories=PESTLE_CATEGORIES,
         generated_at=datetime.datetime.now().strftime("%d %b %Y, %H:%M"),
     )
 
@@ -1241,6 +1287,266 @@ def sixhats_contribute(session_id: str):
     )
     flash("Your contribution has been recorded. Thank you.", "success")
     return redirect(url_for("sixhats_participate", session_id=session_id))
+
+
+# ---------------------------------------------------------------------------
+# SWOT
+# ---------------------------------------------------------------------------
+
+
+@app.route("/swot/")
+@admin_required
+def swot_list():
+    status_filter = request.args.get("status")
+    show_archived = bool(request.args.get("archived"))
+    all_sessions = _swotdb().list_sessions(include_archived=show_archived)
+    if status_filter:
+        all_sessions = [s for s in all_sessions if s["status"] == status_filter]
+    rows = [{"session": s, "item_count": len(_swotdb().get_items(s["id"]))} for s in all_sessions]
+    return render_template("swot/list.html", sessions=rows, status_filter=status_filter, show_archived=show_archived)
+
+
+@app.route("/swot/new", methods=["GET", "POST"])
+@admin_required
+def swot_new():
+    if request.method == "POST":
+        title = request.form.get("title", "").strip()
+        description = request.form.get("description", "").strip()
+        if not title:
+            flash("Title is required", "danger")
+            return render_template("swot/new.html")
+        sid = _swotdb().create_session(title=title, description=description)
+        flash("SWOT session created.", "success")
+        return redirect(url_for("swot_show", session_id=sid))
+    return render_template("swot/new.html")
+
+
+@app.route("/swot/<session_id>")
+@admin_required
+def swot_show(session_id: str):
+    session = _swotdb().get_session(session_id)
+    if not session:
+        return redirect(url_for("swot_list"))
+    items = _swotdb().get_items(session_id)
+    items_by_category = {}
+    for item in items:
+        items_by_category.setdefault(item["category"], []).append(item)
+    participate_url = url_for("swot_participate", session_id=session_id, _external=True)
+    return render_template(
+        "swot/show.html",
+        session=session,
+        items_by_category=items_by_category,
+        categories=SWOT_CATEGORIES,
+        category_info=SWOT_CATEGORY_INFO,
+        participate_url=participate_url,
+    )
+
+
+@app.route("/swot/<session_id>/status", methods=["POST"])
+@admin_required
+def swot_status(session_id: str):
+    status = request.form.get("status", "")
+    if status in ("setup", "open", "closed"):
+        _swotdb().set_status(session_id, status)
+    return redirect(url_for("swot_show", session_id=session_id))
+
+
+@app.route("/swot/<session_id>/archive", methods=["POST"])
+@admin_required
+def swot_archive(session_id: str):
+    _swotdb().archive(session_id)
+    flash("Session archived.", "success")
+    return redirect(url_for("swot_list"))
+
+
+@app.route("/swot/<session_id>/delete", methods=["POST"])
+@admin_required
+def swot_delete(session_id: str):
+    _swotdb().delete_session(session_id)
+    flash("Session deleted.", "success")
+    return redirect(url_for("swot_list"))
+
+
+@app.route("/swot/<session_id>/add_item", methods=["POST"])
+@admin_required
+def swot_add_item(session_id: str):
+    category = request.form.get("category", "")
+    content = request.form.get("content", "").strip()
+    if content and category in SWOT_CATEGORIES:
+        _swotdb().add_item(session_id, category=category, content=content)
+    return redirect(url_for("swot_show", session_id=session_id))
+
+
+@app.route("/swot/<session_id>/delete_item/<item_id>", methods=["POST"])
+@admin_required
+def swot_delete_item(session_id: str, item_id: str):
+    _swotdb().delete_item(item_id)
+    return redirect(url_for("swot_show", session_id=session_id))
+
+
+@app.route("/swot/participate/<session_id>")
+def swot_participate(session_id: str):
+    session = _swotdb().get_session(session_id)
+    if not session:
+        return render_template("participate/not_found.html"), 404
+    return render_template(
+        "swot/participate.html",
+        session=session,
+        categories=SWOT_CATEGORIES,
+        category_info=SWOT_CATEGORY_INFO,
+    )
+
+
+@app.route("/swot/participate/<session_id>/submit", methods=["POST"])
+def swot_participate_submit(session_id: str):
+    session = _swotdb().get_session(session_id)
+    if not session or session["status"] != "open":
+        return redirect(url_for("swot_participate", session_id=session_id))
+    submitted_by = request.form.get("submitted_by", "").strip() or "anonymous"
+    db = _swotdb()
+    added = 0
+    for cat in SWOT_CATEGORIES:
+        raw = request.form.get(f"cat_{cat}", "").strip()
+        for line in raw.splitlines():
+            line = line.strip()
+            if line:
+                db.add_item(session_id, category=cat, content=line, submitted_by=submitted_by)
+                added += 1
+    if added:
+        flash(f"Thank you — {added} item{'s' if added != 1 else ''} recorded.", "success")
+    else:
+        flash("No items submitted.", "warning")
+    return redirect(url_for("swot_participate", session_id=session_id))
+
+
+# ---------------------------------------------------------------------------
+# PESTLE
+# ---------------------------------------------------------------------------
+
+
+@app.route("/pestle/")
+@admin_required
+def pestle_list():
+    status_filter = request.args.get("status")
+    show_archived = bool(request.args.get("archived"))
+    all_sessions = _pestledb().list_sessions(include_archived=show_archived)
+    if status_filter:
+        all_sessions = [s for s in all_sessions if s["status"] == status_filter]
+    rows = [{"session": s, "item_count": len(_pestledb().get_items(s["id"]))} for s in all_sessions]
+    return render_template("pestle/list.html", sessions=rows, status_filter=status_filter, show_archived=show_archived)
+
+
+@app.route("/pestle/new", methods=["GET", "POST"])
+@admin_required
+def pestle_new():
+    if request.method == "POST":
+        title = request.form.get("title", "").strip()
+        description = request.form.get("description", "").strip()
+        if not title:
+            flash("Title is required", "danger")
+            return render_template("pestle/new.html")
+        sid = _pestledb().create_session(title=title, description=description)
+        flash("PESTLE session created.", "success")
+        return redirect(url_for("pestle_show", session_id=sid))
+    return render_template("pestle/new.html")
+
+
+@app.route("/pestle/<session_id>")
+@admin_required
+def pestle_show(session_id: str):
+    session = _pestledb().get_session(session_id)
+    if not session:
+        return redirect(url_for("pestle_list"))
+    items = _pestledb().get_items(session_id)
+    items_by_category = {}
+    for item in items:
+        items_by_category.setdefault(item["category"], []).append(item)
+    participate_url = url_for("pestle_participate", session_id=session_id, _external=True)
+    return render_template(
+        "pestle/show.html",
+        session=session,
+        items_by_category=items_by_category,
+        categories=PESTLE_CATEGORIES,
+        category_info=PESTLE_CATEGORY_INFO,
+        participate_url=participate_url,
+    )
+
+
+@app.route("/pestle/<session_id>/status", methods=["POST"])
+@admin_required
+def pestle_status(session_id: str):
+    status = request.form.get("status", "")
+    if status in ("setup", "open", "closed"):
+        _pestledb().set_status(session_id, status)
+    return redirect(url_for("pestle_show", session_id=session_id))
+
+
+@app.route("/pestle/<session_id>/archive", methods=["POST"])
+@admin_required
+def pestle_archive(session_id: str):
+    _pestledb().archive(session_id)
+    flash("Session archived.", "success")
+    return redirect(url_for("pestle_list"))
+
+
+@app.route("/pestle/<session_id>/delete", methods=["POST"])
+@admin_required
+def pestle_delete(session_id: str):
+    _pestledb().delete_session(session_id)
+    flash("Session deleted.", "success")
+    return redirect(url_for("pestle_list"))
+
+
+@app.route("/pestle/<session_id>/add_item", methods=["POST"])
+@admin_required
+def pestle_add_item(session_id: str):
+    category = request.form.get("category", "")
+    content = request.form.get("content", "").strip()
+    if content and category in PESTLE_CATEGORIES:
+        _pestledb().add_item(session_id, category=category, content=content)
+    return redirect(url_for("pestle_show", session_id=session_id))
+
+
+@app.route("/pestle/<session_id>/delete_item/<item_id>", methods=["POST"])
+@admin_required
+def pestle_delete_item(session_id: str, item_id: str):
+    _pestledb().delete_item(item_id)
+    return redirect(url_for("pestle_show", session_id=session_id))
+
+
+@app.route("/pestle/participate/<session_id>")
+def pestle_participate(session_id: str):
+    session = _pestledb().get_session(session_id)
+    if not session:
+        return render_template("participate/not_found.html"), 404
+    return render_template(
+        "pestle/participate.html",
+        session=session,
+        categories=PESTLE_CATEGORIES,
+        category_info=PESTLE_CATEGORY_INFO,
+    )
+
+
+@app.route("/pestle/participate/<session_id>/submit", methods=["POST"])
+def pestle_participate_submit(session_id: str):
+    session = _pestledb().get_session(session_id)
+    if not session or session["status"] != "open":
+        return redirect(url_for("pestle_participate", session_id=session_id))
+    submitted_by = request.form.get("submitted_by", "").strip() or "anonymous"
+    db = _pestledb()
+    added = 0
+    for cat in PESTLE_CATEGORIES:
+        raw = request.form.get(f"cat_{cat}", "").strip()
+        for line in raw.splitlines():
+            line = line.strip()
+            if line:
+                db.add_item(session_id, category=cat, content=line, submitted_by=submitted_by)
+                added += 1
+    if added:
+        flash(f"Thank you — {added} item{'s' if added != 1 else ''} recorded.", "success")
+    else:
+        flash("No items submitted.", "warning")
+    return redirect(url_for("pestle_participate", session_id=session_id))
 
 
 # ---------------------------------------------------------------------------
