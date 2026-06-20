@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+{% block title %}{{ decision.title }}{% endblock %}
+{% block content %}
+
+{# breadcrumb #}
+<div class="d-flex align-items-center mb-3 gap-2 small text-muted">
+  <a href="{{ url_for('cynefin_list') }}" class="text-muted text-decoration-none">&larr; Decisions</a>
+  <span>/</span>
+  <span>{{ decision.id }}</span>
+</div>
+
+<div class="row g-4">
+
+  {# ---- Left: decision info + guidance ---- #}
+  <div class="col-lg-8">
+
+    {# header card #}
+    <div class="card mb-4">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <h4 class="mb-1">{{ decision.title }}</h4>
+            {% if decision.description %}
+            <p class="text-muted mb-2">{{ decision.description }}</p>
+            {% endif %}
+            <code class="small text-muted">{{ decision.id }}</code>
+          </div>
+          <div class="text-end">
+            {% if decision.domain %}
+            <span class="badge domain-{{ decision.domain }} fs-6 mb-2">{{ decision.domain | title }}</span><br>
+            {% else %}
+            <span class="badge bg-secondary mb-2">Unclassified</span><br>
+            {% endif %}
+            <span class="badge bg-light text-dark border">{{ decision.status }}</span>
+          </div>
+        </div>
+
+        {# score bars #}
+        {% if scores %}
+        <div class="mt-3">
+          {% set max_score = [scores['clear'], scores['complicated'], scores['complex'], scores['chaotic']] | max %}
+          {% for d_key, d_label in [('clear','Clear'),('complicated','Complicated'),('complex','Complex'),('chaotic','Chaotic')] %}
+          {% set pct = ((scores[d_key] / max_score) * 100) | int if max_score > 0 else 0 %}
+          <div class="d-flex align-items-center gap-2 mb-1">
+            <span class="small" style="width:90px">{{ d_label }}</span>
+            <div class="score-track flex-grow-1">
+              <div class="score-fill domain-{{ d_key }}" style="width:{{ pct }}%"></div>
+            </div>
+            <span class="small text-muted" style="width:24px;text-align:right">{{ scores[d_key] | int }}</span>
+            {% if decision.domain == d_key %}<span class="small text-success">&#10004;</span>{% endif %}
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        {# status change #}
+        <div class="mt-3 d-flex gap-2 align-items-center flex-wrap">
+          <form method="post" action="{{ url_for('cynefin_status', decision_id=decision.id) }}">
+            <select name="status" class="form-select form-select-sm d-inline-block w-auto" onchange="this.form.submit()">
+              {% for s in ['open','decided','closed'] %}
+              <option value="{{ s }}" {% if decision.status == s %}selected{% endif %}>{{ s | title }}</option>
+              {% endfor %}
+            </select>
+          </form>
+          <button class="btn btn-sm btn-outline-secondary ms-auto"
+                  data-confirm-action="{{ url_for('cynefin_archive', decision_id=decision.id) }}"
+                  data-confirm-title="Archive decision?"
+                  data-confirm-body="This decision will be hidden from the main list but preserved for reporting."
+                  data-confirm-label="Archive"
+                  data-confirm-danger="false">Archive</button>
+          <button class="btn btn-sm btn-outline-danger"
+                  data-confirm-action="{{ url_for('cynefin_delete', decision_id=decision.id) }}"
+                  data-confirm-title="Permanently delete?"
+                  data-confirm-body="This decision and all its responses, notes, and actions will be deleted. This cannot be undone."
+                  data-confirm-label="Delete permanently"
+                  data-confirm-danger="true">Delete</button>
+        </div>
+      </div>
+    </div>
+
+    {# domain guidance #}
+    {% if domain_info %}
+    <div class="card mb-4 border-start border-4
+      {% if decision.domain == 'clear' %}border-success
+      {% elif decision.domain == 'complicated' %}border-primary
+      {% elif decision.domain == 'complex' %}border-warning
+      {% elif decision.domain == 'chaotic' %}border-danger
+      {% else %}border-secondary{% endif %}">
+      <div class="card-body">
+        <h6 class="text-muted mb-1">{{ domain_info.sense_act }}</h6>
+        <p class="mb-2">{{ domain_info.description }}</p>
+        <ul class="mb-2 small">
+          {% for g in domain_info.guidance %}
+          <li>{{ g }}</li>
+          {% endfor %}
+        </ul>
+        <div class="small text-muted fst-italic">&#9888; {{ domain_info.warning }}</div>
+      </div>
+    </div>
+    {% endif %}
+
+    {# assessment form #}
+    <div class="card mb-4">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span class="fw-medium">Assessment
+          <span class="badge bg-light text-dark border ms-1">{{ answered_ids | length }}/{{ questions | length }}</span>
+        </span>
+      </div>
+      <div class="card-body">
+        <form method="post" action="{{ url_for('cynefin_assess', decision_id=decision.id) }}">
+          {% for q in questions %}
+          <div class="mb-4">
+            <p class="fw-medium mb-2">{{ loop.index }}. {{ q.text }}</p>
+            {% for a in q.answers %}
+            <div class="form-check">
+              <input class="form-check-input" type="radio"
+                     name="{{ q.id }}" id="{{ q.id }}_{{ a.key }}" value="{{ a.key }}"
+                     {% for r in responses %}{% if r.question_id == q.id and r.answer_key == a.key %}checked{% endif %}{% endfor %}>
+              <label class="form-check-label" for="{{ q.id }}_{{ a.key }}">{{ a.label }}</label>
+            </div>
+            {% endfor %}
+          </div>
+          {% endfor %}
+          <button type="submit" class="btn btn-primary">Save assessment</button>
+        </form>
+      </div>
+    </div>
+
+    {# transcript ingestion #}
+    <div class="card mb-4">
+      <div class="card-header fw-medium">Attach transcript</div>
+      <div class="card-body">
+        <form method="post" action="{{ url_for('cynefin_ingest', decision_id=decision.id) }}"
+              enctype="multipart/form-data" class="row g-2 align-items-end">
+          <div class="col-auto flex-grow-1">
+            <input type="file" class="form-control form-control-sm" name="transcript"
+                   accept=".txt,.vtt,.json">
+          </div>
+          <div class="col-auto">
+            <select name="format" class="form-select form-select-sm">
+              <option value="auto">Auto-detect</option>
+              <option value="plain">Plain text</option>
+              <option value="vtt">WebVTT</option>
+              <option value="json">JSON</option>
+            </select>
+          </div>
+          <div class="col-auto">
+            <button type="submit" class="btn btn-sm btn-outline-secondary">Upload</button>
+          </div>
+        </form>
+        <div class="form-text">Supports plain text (.txt), WebVTT captions (.vtt), and JSON conversation exports.</div>
+      </div>
+    </div>
+
+  </div>{# end col-lg-8 #}
+
+  {# ---- Right: notes + actions ---- #}
+  <div class="col-lg-4">
+
+    {# notes #}
+    <div class="card mb-4">
+      <div class="card-header fw-medium">Notes <span class="badge bg-light text-dark border ms-1">{{ notes | length }}</span></div>
+      <div class="card-body p-2">
+        {% if notes %}
+        <ul class="list-unstyled mb-2">
+          {% for n in notes %}
+          <li class="border-bottom pb-2 mb-2 small">
+            <span class="badge bg-light text-dark me-1">{{ n.source_type }}</span>
+            {{ n.content | truncate(200) }}
+            <div class="text-muted" style="font-size:.7rem">{{ n.created_at[:16] }}</div>
+          </li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+        <form method="post" action="{{ url_for('cynefin_note', decision_id=decision.id) }}">
+          <textarea class="form-control form-control-sm mb-2" name="content" rows="2"
+                    placeholder="Add a note…"></textarea>
+          <button type="submit" class="btn btn-sm btn-outline-secondary w-100">Add note</button>
+        </form>
+      </div>
+    </div>
+
+    {# actions #}
+    <div class="card mb-4">
+      <div class="card-header fw-medium">Actions <span class="badge bg-light text-dark border ms-1">{{ actions | length }}</span></div>
+      <div class="card-body p-2">
+        {% if actions %}
+        <ul class="list-unstyled mb-2">
+          {% for a in actions %}
+          <li class="border-bottom pb-2 mb-2 small">
+            {{ a.action_text }}
+            {% if a.outcome %}
+            <div class="text-success">&#10003; {{ a.outcome }}</div>
+            {% else %}
+            <span class="badge bg-warning text-dark">pending</span>
+            {% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+        <form method="post" action="{{ url_for('cynefin_action', decision_id=decision.id) }}">
+          <input type="text" class="form-control form-control-sm mb-2" name="action_text"
+                 placeholder="Record an action…">
+          <button type="submit" class="btn btn-sm btn-outline-secondary w-100">Add action</button>
+        </form>
+      </div>
+    </div>
+
+  </div>{# end col-lg-4 #}
+</div>
+
+{% endblock %}

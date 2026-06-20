@@ -1,0 +1,564 @@
+{% extends "base.html" %}
+{% block title %}Guide — Decision Support{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h4 class="mb-0">User &amp; Admin Guide</h4>
+  <button onclick="window.print()" class="btn btn-sm btn-outline-secondary no-print">Print / Save PDF</button>
+</div>
+
+<style>
+  @media print {
+    .no-print { display: none !important; }
+    .navbar   { display: none !important; }
+    .card     { break-inside: avoid; }
+  }
+  .framework-card { border-left: 4px solid; }
+  .framework-cynefin   { border-color: #0d6efd; }
+  .framework-delphi    { border-color: #198754; }
+  .framework-premortem { border-color: #dc3545; }
+  .framework-matrix    { border-color: #0dcaf0; }
+  .framework-sixhats   { border-color: #ffc107; }
+  .step-num {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 24px; height: 24px; border-radius: 50%;
+    background: #0d6efd; color: #fff; font-size: .75rem; font-weight: 700;
+    flex-shrink: 0; margin-top: 2px;
+  }
+  .toc a { text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+</style>
+
+{# ---- Table of contents ---- #}
+<div class="card mb-4 no-print">
+  <div class="card-body py-2">
+    <div class="toc d-flex flex-wrap gap-3 small">
+      <a href="#when-to-use">When to use which framework</a>
+      <span class="text-muted">·</span>
+      <a href="#participant-guide">Participant guide</a>
+      <span class="text-muted">·</span>
+      <a href="#admin-guide">Admin guide</a>
+      <span class="text-muted">·</span>
+      <a href="#cynefin-howto">Cynefin</a>
+      <span class="text-muted">·</span>
+      <a href="#delphi-howto">Delphi</a>
+      <span class="text-muted">·</span>
+      <a href="#premortem-howto">Pre-Mortem</a>
+      <span class="text-muted">·</span>
+      <a href="#matrix-howto">Decision Matrix</a>
+      <span class="text-muted">·</span>
+      <a href="#sixhats-howto">Six Thinking Hats</a>
+    </div>
+  </div>
+</div>
+
+{# ================================================================ #}
+{# WHEN TO USE                                                       #}
+{# ================================================================ #}
+<h5 class="fw-bold mb-3" id="when-to-use">When to use which framework</h5>
+
+<p class="text-muted mb-3">
+  Each framework is suited to a different type of problem. Use this table to pick the right tool before you start.
+</p>
+
+<div class="card mb-3">
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead class="table-light">
+        <tr>
+          <th style="width:130px">Framework</th>
+          <th>Use when&hellip;</th>
+          <th>Not ideal when&hellip;</th>
+          <th style="width:140px">Time required</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="badge bg-primary">Cynefin</span></td>
+          <td class="small">You are unsure what <em>type</em> of decision you are facing &mdash; should you apply a known procedure, consult experts, experiment, or just act? Good first step before choosing any other framework.</td>
+          <td class="small">You already know the domain and just need a process for deciding.</td>
+          <td class="small">15&ndash;30 min for assessment</td>
+        </tr>
+        <tr>
+          <td><span class="badge bg-success">Delphi</span></td>
+          <td class="small">You need structured consensus from multiple experts or stakeholders &mdash; especially when participants might be influenced by seniority or peer pressure in a room. Good for forecasting, prioritisation, and policy decisions.</td>
+          <td class="small">Speed is critical, or you have fewer than 3&ndash;4 participants. One person&#8217;s opinion is sufficient.</td>
+          <td class="small">Hours to days across rounds</td>
+        </tr>
+        <tr>
+          <td><span class="badge bg-danger">Pre-Mortem</span></td>
+          <td class="small">You are about to commit to a plan and want to stress-test it. Especially valuable for projects with a high cost of failure, or where optimism bias and groupthink may be present.</td>
+          <td class="small">The decision is reversible and low-stakes. The plan is not yet concrete enough to imagine its failure.</td>
+          <td class="small">30&ndash;60 min brainstorm session</td>
+        </tr>
+        <tr>
+          <td><span class="badge bg-info text-dark">Matrix</span></td>
+          <td class="small">You have two or more concrete options and a clear set of criteria that matter. Good for vendor selection, technology choices, location decisions, or any structured trade-off analysis.</td>
+          <td class="small">Options are not yet defined, or criteria are unknown. The decision is primarily emotional or political.</td>
+          <td class="small">30&ndash;90 min for scoring</td>
+        </tr>
+        <tr>
+          <td><span class="badge bg-warning text-dark">Six Hats</span></td>
+          <td class="small">You want rich, multi-perspective thinking from a group without debate or domination. Good for creative problem-solving, strategy sessions, and any topic where you want to systematically explore all angles.</td>
+          <td class="small">You need a specific quantitative answer. The group is very small (1&ndash;2 people).</td>
+          <td class="small">60&ndash;90 min for all six hats</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{# Quick decision guide #}
+<div class="card mb-5 border-0 bg-light">
+  <div class="card-body">
+    <div class="fw-semibold mb-3 small text-muted text-uppercase">Quick decision guide</div>
+    <div class="row g-3 small">
+      <div class="col-md-6">
+        <div class="p-3 rounded border bg-white">
+          <p class="fw-medium mb-2">&#8220;I don&#8217;t know what kind of problem this is.&#8221;</p>
+          <p class="text-muted mb-0">&rarr; Start with <span class="badge bg-primary">Cynefin</span> to classify the domain, then choose your next framework accordingly.</p>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="p-3 rounded border bg-white">
+          <p class="fw-medium mb-2">&#8220;I need to choose between Option A, B, and C.&#8221;</p>
+          <p class="text-muted mb-0">&rarr; Use <span class="badge bg-info text-dark">Decision Matrix</span> to score them against your criteria objectively.</p>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="p-3 rounded border bg-white">
+          <p class="fw-medium mb-2">&#8220;I need experts to agree on priorities.&#8221;</p>
+          <p class="text-muted mb-0">&rarr; Use <span class="badge bg-success">Delphi</span> for anonymous, iterative consensus building.</p>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="p-3 rounded border bg-white">
+          <p class="fw-medium mb-2">&#8220;We&#8217;re about to launch &mdash; what could go wrong?&#8221;</p>
+          <p class="text-muted mb-0">&rarr; Use <span class="badge bg-danger">Pre-Mortem</span> to surface hidden risks before you commit.</p>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="p-3 rounded border bg-white">
+          <p class="fw-medium mb-2">&#8220;I want the team to think deeply without debate.&#8221;</p>
+          <p class="text-muted mb-0">&rarr; Use <span class="badge bg-warning text-dark">Six Hats</span> to explore all perspectives systematically.</p>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="p-3 rounded border bg-white">
+          <p class="fw-medium mb-2">&#8220;I need to do all of the above.&#8221;</p>
+          <p class="text-muted mb-0">&rarr; Cynefin first &rarr; Pre-Mortem to stress-test &rarr; Delphi or Matrix to decide &rarr; Six Hats for buy-in.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ================================================================ #}
+{# PARTICIPANT GUIDE                                                 #}
+{# ================================================================ #}
+<h5 class="fw-bold mb-3" id="participant-guide">Participant guide</h5>
+<p class="text-muted mb-3">
+  If someone has sent you a link, this section explains what to expect.
+  You do not need an account. Your responses are anonymous unless you choose to enter your name.
+</p>
+
+<div class="row g-4 mb-5">
+
+  <div class="col-md-6">
+    <div class="card framework-card framework-delphi h-100">
+      <div class="card-header fw-medium"><span class="badge bg-success me-1">Delphi</span> What participants do</div>
+      <div class="card-body small">
+        <p>You will see the session question and the current round&#8217;s prompt.</p>
+        <ul class="mb-0">
+          <li class="mb-2"><strong>Early rounds:</strong> Write a free-text response explaining your view. Add an optional score (1&ndash;9).</li>
+          <li class="mb-2"><strong>Rating rounds:</strong> Rate each proposition 1&ndash;9 (1 = strongly disagree, 9 = strongly agree) and optionally explain your rating.</li>
+          <li><strong>Between rounds:</strong> You will see which rounds are closed and their summaries, but not other participants&#8217; scores.</li>
+        </ul>
+        <p class="mt-3 text-muted mb-0">There is no login. You can reload the page and submit again.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="card framework-card framework-premortem h-100">
+      <div class="card-header fw-medium"><span class="badge bg-danger me-1">Pre-Mortem</span> What participants do</div>
+      <div class="card-body small">
+        <p>You will see the plan being evaluated. Imagine it is one year later and the project has failed.</p>
+        <ul class="mb-0">
+          <li class="mb-2">Describe one specific reason why it failed &mdash; be candid and concrete.</li>
+          <li class="mb-2">Your response is fully anonymous.</li>
+          <li>You can submit multiple scenarios by reloading and submitting again.</li>
+        </ul>
+        <p class="mt-3 text-muted mb-0">If the link shows &#8220;closed&#8221;, brainstorming has ended and the facilitator is reviewing your input.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="card framework-card framework-matrix h-100">
+      <div class="card-header fw-medium"><span class="badge bg-info text-dark me-1">Matrix</span> What participants do</div>
+      <div class="card-body small">
+        <p>You will see a grid of options and criteria. Score each option against each criterion.</p>
+        <ul class="mb-0">
+          <li class="mb-2">Scores are <strong>1&ndash;10</strong> (10 = best possible on that criterion).</li>
+          <li class="mb-2">Criteria weights are hidden from participants to prevent anchoring.</li>
+          <li>Enter your name or leave it blank to stay anonymous.</li>
+        </ul>
+        <p class="mt-3 text-muted mb-0">Partial submissions are fine &mdash; score as many cells as you can.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="card framework-card framework-sixhats h-100">
+      <div class="card-header fw-medium"><span class="badge bg-warning text-dark me-1">Six Hats</span> What participants do</div>
+      <div class="card-body small">
+        <p>You will see which hat is currently open and its thinking prompt.</p>
+        <ul class="mb-0">
+          <li class="mb-2">Write a contribution from that hat&#8217;s perspective &mdash; don&#8217;t filter yourself.</li>
+          <li class="mb-2">You can contribute as many times as you like while the hat is open.</li>
+          <li>When the facilitator closes a hat and opens the next, you will see the update on reload.</li>
+        </ul>
+        <p class="mt-3 text-muted mb-0">Think of each hat as a costume: your job is to think from that perspective only, not to debate others.</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+{# ================================================================ #}
+{# ADMIN GUIDE — OVERVIEW                                           #}
+{# ================================================================ #}
+<h5 class="fw-bold mb-3" id="admin-guide">Admin guide &mdash; overview</h5>
+<p class="text-muted mb-3">
+  As the facilitator, you manage the full session lifecycle. The navbar gives you access to all five frameworks.
+  Use the <strong>Results</strong> page for a unified view across everything.
+</p>
+
+<div class="card mb-4">
+  <div class="card-body small">
+    <div class="row g-4">
+      <div class="col-md-6">
+        <h6 class="fw-semibold">General controls (all frameworks)</h6>
+        <ul class="mb-0">
+          <li class="mb-1"><strong>Archive</strong> &mdash; hides a session from the main list; data is fully preserved and visible in Results. Use for completed sessions you don&#8217;t need to see daily.</li>
+          <li class="mb-1"><strong>Delete</strong> &mdash; permanently removes all data (with a confirmation dialog). Cannot be undone.</li>
+          <li class="mb-1"><strong>Show archived</strong> &mdash; toggle on any list page to reveal archived sessions. Archived sessions can be restored.</li>
+          <li><strong>Results dashboard</strong> &mdash; at <code>/results</code>, shows all sessions across all frameworks with a Save as PDF button.</li>
+        </ul>
+      </div>
+      <div class="col-md-6">
+        <h6 class="fw-semibold">Participant links</h6>
+        <ul class="mb-0">
+          <li class="mb-1">Every session with a participant view shows a <strong>Participant link</strong> banner when the session is in the correct state (e.g. brainstorming open, round open, scoring open).</li>
+          <li class="mb-1">The link is public &mdash; anyone with it can participate. No login required.</li>
+          <li>Participants never see raw scores, other participants&#8217; names, or admin controls.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ================================================================ #}
+{# CYNEFIN HOW-TO                                                   #}
+{# ================================================================ #}
+<div class="card mb-4 framework-card framework-cynefin" id="cynefin-howto">
+  <div class="card-header fw-medium d-flex align-items-center gap-2">
+    <span class="badge bg-primary fs-6">Cynefin</span>
+    <span>How to run a classification</span>
+  </div>
+  <div class="card-body">
+    <div class="row g-4">
+      <div class="col-md-8">
+        <ol class="list-unstyled mb-0">
+          <li class="d-flex gap-3 mb-3">
+            <span class="step-num">1</span>
+            <div><div class="fw-medium">Create a decision</div>
+            <div class="text-muted small">Click &#8220;+ New decision&#8221;. Give it a clear title and an optional description. The status starts as open.</div></div>
+          </li>
+          <li class="d-flex gap-3 mb-3">
+            <span class="step-num">2</span>
+            <div><div class="fw-medium">Answer the assessment questions</div>
+            <div class="text-muted small">Work through the 7 diagnostic questions on the decision page. Each covers a different lens: precedent, causality, stakeholder agreement, expertise, reversibility, urgency, and information quality. You can answer all at once or return later.</div></div>
+          </li>
+          <li class="d-flex gap-3 mb-3">
+            <span class="step-num">3</span>
+            <div><div class="fw-medium">Read the domain classification</div>
+            <div class="text-muted small">After saving, the tool scores your answers and suggests a Cynefin domain. Read the domain guidance card &mdash; it explains what the domain means and gives concrete action recommendations.</div></div>
+          </li>
+          <li class="d-flex gap-3 mb-3">
+            <span class="step-num">4</span>
+            <div><div class="fw-medium">Add context</div>
+            <div class="text-muted small">Use the Notes panel to attach meeting transcripts, key facts, or stakeholder input. Use Actions to record next steps and mark them resolved as you go.</div></div>
+          </li>
+          <li class="d-flex gap-3 mb-0">
+            <span class="step-num">5</span>
+            <div><div class="fw-medium">Update the status</div>
+            <div class="text-muted small">Move the decision through open &rarr; decided &rarr; closed as you progress. Archive when done.</div></div>
+          </li>
+        </ol>
+      </div>
+      <div class="col-md-4">
+        <div class="bg-light rounded p-3 small">
+          <div class="fw-semibold mb-2">Tips</div>
+          <ul class="mb-0 ps-3">
+            <li class="mb-1">Re-answer questions as your understanding improves &mdash; responses overwrite previous answers and the domain re-classifies automatically.</li>
+            <li class="mb-1">Upload a transcript via &#8220;Attach transcript&#8221; to auto-populate notes from VTT or plain-text files.</li>
+            <li>If scores are tied the tool returns &#8220;Disorder&#8221; &mdash; gather more information before deciding.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ================================================================ #}
+{# DELPHI HOW-TO                                                    #}
+{# ================================================================ #}
+<div class="card mb-4 framework-card framework-delphi" id="delphi-howto">
+  <div class="card-header fw-medium d-flex align-items-center gap-2">
+    <span class="badge bg-success fs-6">Delphi</span>
+    <span>How to run a consensus session</span>
+  </div>
+  <div class="card-body">
+    <div class="row g-4">
+      <div class="col-md-8">
+        <ol class="list-unstyled mb-0">
+          <li class="d-flex gap-3 mb-3">
+            <span class="step-num">1</span>
+            <div><div class="fw-medium">Create a session</div>
+            <div class="text-muted small">Click &#8220;+ New session&#8221;. Write a clear, specific question. Set a consensus threshold &mdash; IQR &le; 2.0 is the standard Delphi threshold for a 1&ndash;9 scale.</div></div>
+          </li>
+          <li class="d-flex gap-3 mb-3">
+            <span class="step-num">2</span>
+            <div><div class="fw-medium">Open Round 1</div>
+            <div class="text-muted small">Click &#8220;Open Round 1&#8221;. Add an optional prompt for participants. Share the participant link.</div></div>
+          </li>
+          <li class="d-flex gap-3 mb-3">
+            <span class="step-num">3</span>
+            <div><div class="fw-medium">Collect free-text responses</div>
+            <div class="text-muted small">In Round 1, participants write qualitative responses. When everyone has responded, click &#8220;Close round&#8221;.</div></div>
+          </li>
+          <li class="d-flex gap-3 mb-3">
+            <span class="step-num">4</span>
+            <div><div class="fw-medium">Distil propositions</div>
+            <div class="text-muted small">Read all responses and add key themes as items (propositions) for rating. Each item should be a clear, rateable statement.</div></div>
+          </li>
+          <li class="d-flex gap-3 mb-3">
+            <span class="step-num">5</span>
+            <div><div class="fw-medium">Open Round 2 for rating</div>
+            <div class="text-muted small">Open the next round. Participants rate each item 1&ndash;9. The tool shows IQR and a consensus verdict per item in real time.</div></div>
+          </li>
+          <li class="d-flex gap-3 mb-3">
+            <span class="step-num">6</span>
+            <div><div class="fw-medium">Repeat until consensus</div>
+            <div class="text-muted small">Close the round, review where IQR is still high, open another round with a prompt addressing the disagreement. Repeat until all items reach consensus or you decide to stop.</div></div>
+          </li>
+          <li class="d-flex gap-3 mb-0">
+            <span class="step-num">7</span>
+            <div><div class="fw-medium">Archive when done</div>
+            <div class="text-muted small">When consensus is reached (or you have concluded), archive the session. The Results dashboard shows the final state.</div></div>
+          </li>
+        </ol>
+      </div>
+      <div class="col-md-4">
+        <div class="bg-light rounded p-3 small">
+          <div class="fw-semibold mb-2">Tips</div>
+          <ul class="mb-0 ps-3">
+            <li class="mb-1">Keep items to 5&ndash;10 per round &mdash; too many causes fatigue.</li>
+            <li class="mb-1">Include the previous round&#8217;s median in the Round 2 prompt to encourage convergence.</li>
+            <li class="mb-1">Anonymity is key &mdash; don&#8217;t share who said what between rounds.</li>
+            <li>2&ndash;3 rounds is typical. If you haven&#8217;t converged in 4, consider restructuring the items.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ================================================================ #}
+{# PRE-MORTEM HOW-TO                                                #}
+{# ================================================================ #}
+<div class="card mb-4 framework-card framework-premortem" id="premortem-howto">
+  <div class="card-header fw-medium d-flex align-items-center gap-2">
+    <span class="badge bg-danger fs-6">Pre-Mortem</span>
+    <span>How to run a risk session</span>
+  </div>
+  <div class="card-body">
+    <div class="row g-4">
+      <div class="col-md-8">
+        <ol class="list-unstyled mb-0">
+          <li class="d-flex gap-3 mb-3">
+            <span class="step-num">1</span>
+            <div><div class="fw-medium">Create a session</div>
+            <div class="text-muted small">Click &#8220;+ New session&#8221;. In the &#8220;Plan being evaluated&#8221; field, write a clear description of the plan or initiative. The more concrete, the better &mdash; participants need to be able to imagine it failing.</div></div>
+          </li>
+          <li class="d-flex gap-3 mb-3">
+            <span class="step-num">2</span>
+            <div><div class="fw-medium">Set status to Brainstorming</div>
+            <div class="text-muted small">Change the status to &#8220;Brainstorming&#8221;. The participant link banner will appear. Share the link with your team.</div></div>
+          </li>
+          <li class="d-flex gap-3 mb-3">
+            <span class="step-num">3</span>
+            <div><div class="fw-medium">Let participants submit scenarios</div>
+            <div class="text-muted small">Participants visit the link and complete the sentence &#8220;We failed because&hellip;&#8221;. Encourage specific, concrete scenarios &mdash; not generic risks. Submissions are anonymous.</div></div>
+          </li>
+          <li class="d-flex gap-3 mb-3">
+            <span class="step-num">4</span>
+            <div><div class="fw-medium">Switch to Reviewing</div>
+            <div class="text-muted small">When enough scenarios have come in (allow 24&ndash;48 hours for async), change status to &#8220;Reviewing&#8221;. The submission form closes for participants.</div></div>
+          </li>
+          <li class="d-flex gap-3 mb-3">
+            <span class="step-num">5</span>
+            <div><div class="fw-medium">Consolidate into risks</div>
+            <div class="text-muted small">Read each scenario. Group similar ones and add consolidated risks with a title, description, severity (1&ndash;5), likelihood (1&ndash;5), and mitigation note.</div></div>
+          </li>
+          <li class="d-flex gap-3 mb-0">
+            <span class="step-num">6</span>
+            <div><div class="fw-medium">Present and act</div>
+            <div class="text-muted small">Use the risk register in your planning meeting. Focus on High severity + High likelihood risks. Update the plan to address the top risks, then mark the session complete.</div></div>
+          </li>
+        </ol>
+      </div>
+      <div class="col-md-4">
+        <div class="bg-light rounded p-3 small">
+          <div class="fw-semibold mb-2">Tips</div>
+          <ul class="mb-0 ps-3">
+            <li class="mb-1">Frame the brief clearly: &#8220;It is one year from now. The project has failed spectacularly. Why?&#8221; &mdash; specificity produces better scenarios.</li>
+            <li class="mb-1">10&ndash;15 scenarios is a healthy number. More people = richer input.</li>
+            <li class="mb-1">Focus mitigation effort on High &times; High risks first.</li>
+            <li>Don&#8217;t aim to prevent every risk &mdash; just the high-impact ones.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ================================================================ #}
+{# MATRIX HOW-TO                                                    #}
+{# ================================================================ #}
+<div class="card mb-4 framework-card framework-matrix" id="matrix-howto">
+  <div class="card-header fw-medium d-flex align-items-center gap-2">
+    <span class="badge bg-info text-dark fs-6">Matrix</span>
+    <span>How to run a decision matrix</span>
+  </div>
+  <div class="card-body">
+    <div class="row g-4">
+      <div class="col-md-8">
+        <ol class="list-unstyled mb-0">
+          <li class="d-flex gap-3 mb-3">
+            <span class="step-num">1</span>
+            <div><div class="fw-medium">Create a matrix</div>
+            <div class="text-muted small">Click &#8220;+ New matrix&#8221;. Give it a descriptive title such as &#8220;CRM platform selection &mdash; Q3&#8221;.</div></div>
+          </li>
+          <li class="d-flex gap-3 mb-3">
+            <span class="step-num">2</span>
+            <div><div class="fw-medium">Add options</div>
+            <div class="text-muted small">Add each alternative being considered. 2&ndash;6 options is the sweet spot.</div></div>
+          </li>
+          <li class="d-flex gap-3 mb-3">
+            <span class="step-num">3</span>
+            <div><div class="fw-medium">Add criteria and set weights</div>
+            <div class="text-muted small">Add the criteria that matter for this decision. Set a weight 1&ndash;5 for each (5 = most important). Weights are hidden from participants to prevent anchoring. Agree weights with stakeholders <em>before</em> seeing scores.</div></div>
+          </li>
+          <li class="d-flex gap-3 mb-3">
+            <span class="step-num">4</span>
+            <div><div class="fw-medium">Open scoring</div>
+            <div class="text-muted small">Change the status to &#8220;Scoring&#8221;. The participant link appears. Share it with everyone who should score.</div></div>
+          </li>
+          <li class="d-flex gap-3 mb-3">
+            <span class="step-num">5</span>
+            <div><div class="fw-medium">Collect scores</div>
+            <div class="text-muted small">Participants score each option 1&ndash;10 per criterion. Multiple participants can score &mdash; their scores are averaged per cell.</div></div>
+          </li>
+          <li class="d-flex gap-3 mb-0">
+            <span class="step-num">6</span>
+            <div><div class="fw-medium">Review results</div>
+            <div class="text-muted small">Change status to &#8220;Closed&#8221;. Options are ranked by weighted average. The top option is highlighted. If the winner isn&#8217;t the intuitive choice, use it as a conversation starter.</div></div>
+          </li>
+        </ol>
+      </div>
+      <div class="col-md-4">
+        <div class="bg-light rounded p-3 small">
+          <div class="fw-semibold mb-2">Tips</div>
+          <ul class="mb-0 ps-3">
+            <li class="mb-1">Keep criteria independent &mdash; overlapping criteria effectively double-weight a factor.</li>
+            <li class="mb-1">Weight 1 = &#8220;nice to have&#8221;, weight 5 = &#8220;deal-breaker&#8221;.</li>
+            <li class="mb-1">5&ndash;8 criteria is optimal. More than 10 causes decision fatigue.</li>
+            <li>The matrix ranks, it doesn&#8217;t decide &mdash; use it to structure the conversation.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ================================================================ #}
+{# SIX HATS HOW-TO                                                  #}
+{# ================================================================ #}
+<div class="card mb-5 framework-card framework-sixhats" id="sixhats-howto">
+  <div class="card-header fw-medium d-flex align-items-center gap-2">
+    <span class="badge bg-warning text-dark fs-6">Six Hats</span>
+    <span>How to run a parallel thinking session</span>
+  </div>
+  <div class="card-body">
+    <div class="row g-4">
+      <div class="col-md-8">
+        <ol class="list-unstyled mb-0">
+          <li class="d-flex gap-3 mb-3">
+            <span class="step-num">1</span>
+            <div><div class="fw-medium">Create a session</div>
+            <div class="text-muted small">Click &#8220;+ New session&#8221;. Write a clear topic or question in the &#8220;Topic&#8221; field &mdash; this is what participants will think about throughout the session.</div></div>
+          </li>
+          <li class="d-flex gap-3 mb-3">
+            <span class="step-num">2</span>
+            <div><div class="fw-medium">Share the participant link</div>
+            <div class="text-muted small">Copy the participant link from the session page and share it before the meeting. Participants can join from any device.</div></div>
+          </li>
+          <li class="d-flex gap-3 mb-3">
+            <span class="step-num">3</span>
+            <div><div class="fw-medium">Open the White Hat</div>
+            <div class="text-muted small">Click &#8220;Open White Hat&#8221;. Participants see the white hat prompt and submit factual observations, data, and what information is missing. There is no debate &mdash; only contributions.</div></div>
+          </li>
+          <li class="d-flex gap-3 mb-3">
+            <span class="step-num">4</span>
+            <div><div class="fw-medium">Close and move to the next hat</div>
+            <div class="text-muted small">When contributions slow down (5&ndash;15 minutes per hat in a live meeting), click &#8220;Close White Hat&#8221;. Immediately open the Red Hat. Repeat through all six.</div></div>
+          </li>
+          <li class="d-flex gap-3 mb-3">
+            <span class="step-num">5</span>
+            <div><div class="fw-medium">Recommended order</div>
+            <div class="text-muted small">White &rarr; Red &rarr; Black &rarr; Yellow &rarr; Green &rarr; Blue. Blue last provides synthesis and summary. The session auto-completes after all six are closed.</div></div>
+          </li>
+          <li class="d-flex gap-3 mb-0">
+            <span class="step-num">6</span>
+            <div><div class="fw-medium">Review contributions</div>
+            <div class="text-muted small">After completion, read the contributions by hat on the admin page. Use the Blue hat contributions as the meeting summary and next-step guide.</div></div>
+          </li>
+        </ol>
+      </div>
+      <div class="col-md-4">
+        <div class="bg-light rounded p-3 small">
+          <div class="fw-semibold mb-2">Hat reference</div>
+          <ul class="list-unstyled mb-3">
+            <li class="mb-1 d-flex gap-2 align-items-center"><span class="badge bg-secondary">🤍 White</span> <span class="text-muted">Facts &amp; data</span></li>
+            <li class="mb-1 d-flex gap-2 align-items-center"><span class="badge bg-danger">❤️ Red</span> <span class="text-muted">Emotions &amp; gut</span></li>
+            <li class="mb-1 d-flex gap-2 align-items-center"><span class="badge bg-dark">🖤 Black</span> <span class="text-muted">Risks &amp; caution</span></li>
+            <li class="mb-1 d-flex gap-2 align-items-center"><span class="badge bg-warning text-dark">💛 Yellow</span> <span class="text-muted">Benefits &amp; optimism</span></li>
+            <li class="mb-1 d-flex gap-2 align-items-center"><span class="badge bg-success">💚 Green</span> <span class="text-muted">Ideas &amp; creativity</span></li>
+            <li class="mb-1 d-flex gap-2 align-items-center"><span class="badge bg-primary">💙 Blue</span> <span class="text-muted">Process &amp; summary</span></li>
+          </ul>
+          <div class="fw-semibold mb-1">Tips</div>
+          <ul class="mb-0 ps-3">
+            <li class="mb-1">Enforce the hat: if someone argues during Red hat, redirect them &mdash; &#8220;Red hat only: feelings, no justification.&#8221;</li>
+            <li class="mb-1">5&ndash;10 min per hat is typical in a live session.</li>
+            <li>For async sessions, leave each hat open for 24 hours.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

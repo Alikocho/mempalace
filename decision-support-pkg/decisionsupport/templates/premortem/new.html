@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}New Pre-Mortem Session{% endblock %}
+{% block content %}
+
+<div class="d-flex align-items-center mb-3 gap-2 small text-muted">
+  <a href="{{ url_for('premortem_list') }}" class="text-muted text-decoration-none">&larr; Sessions</a>
+  <span>/</span><span>New</span>
+</div>
+
+<div class="card" style="max-width:600px">
+  <div class="card-header fw-medium">New Pre-Mortem Session</div>
+  <div class="card-body">
+    <p class="text-muted small mb-3">
+      A Pre-Mortem imagines the project has already failed and asks participants to explain why.
+      This surfaces hidden risks before you commit.
+    </p>
+    <form method="post">
+      <div class="mb-3">
+        <label class="form-label fw-medium">Title <span class="text-danger">*</span></label>
+        <input type="text" class="form-control" name="title" placeholder="e.g. Product launch pre-mortem" required>
+      </div>
+      <div class="mb-3">
+        <label class="form-label fw-medium">Description</label>
+        <input type="text" class="form-control" name="description" placeholder="Optional context">
+      </div>
+      <div class="mb-3">
+        <label class="form-label fw-medium">Plan / proposal being evaluated</label>
+        <textarea class="form-control" name="plan_text" rows="4"
+                  placeholder="Describe the plan, initiative, or decision participants will be imagining as having failed…"></textarea>
+      </div>
+      <button type="submit" class="btn btn-danger">Create session</button>
+      <a href="{{ url_for('premortem_list') }}" class="btn btn-outline-secondary ms-2">Cancel</a>
+    </form>
+  </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Import Decision{% endblock %}
+{% block content %}
+
+<div class="row justify-content-center">
+  <div class="col-lg-7">
+    <div class="d-flex align-items-center mb-4 gap-2 small text-muted">
+      <a href="{{ url_for('cynefin_list') }}" class="text-muted text-decoration-none">&larr; Decisions</a>
+      <span>/</span><span>Import</span>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><h5 class="mb-0">Import decision from JSON form</h5></div>
+      <div class="card-body">
+        <form method="post" enctype="multipart/form-data">
+          <div class="mb-3">
+            <label class="form-label fw-medium">JSON file <span class="text-danger">*</span></label>
+            <input type="file" class="form-control" name="form_json" accept=".json" required>
+          </div>
+          <button type="submit" class="btn btn-primary">Import</button>
+          <a href="{{ url_for('cynefin_list') }}" class="btn btn-outline-secondary ms-2">Cancel</a>
+        </form>
+      </div>
+    </div>
+
+    <div class="card mt-3 border-0 bg-light">
+      <div class="card-body small">
+        <strong>Expected JSON format:</strong>
+        <pre class="mt-2 mb-0" style="font-size:.8rem">{
+  "title": "Decision title",
+  "description": "Optional context",
+  "responses": {
+    "q_precedent":    "a",
+    "q_best_practice": "b",
+    "q_cause_effect": "c",
+    "q_time":         "a",
+    "q_stakeholders": "b",
+    "q_experiment":   "b",
+    "q_constraints":  "c"
+  },
+  "notes": ["Note one", "Note two"],
+  "metadata": {}
+}</pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

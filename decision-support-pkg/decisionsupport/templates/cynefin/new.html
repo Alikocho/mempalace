@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}New Decision{% endblock %}
+{% block content %}
+
+<div class="row justify-content-center">
+  <div class="col-lg-7">
+    <div class="d-flex align-items-center mb-4 gap-2">
+      <a href="{{ url_for('cynefin_list') }}" class="text-muted text-decoration-none">&larr; Decisions</a>
+      <span class="text-muted">/</span>
+      <span>New</span>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h5 class="mb-0"><span class="badge bg-primary me-2">Cynefin</span>New decision</h5>
+      </div>
+      <div class="card-body">
+        <form method="post">
+          <div class="mb-3">
+            <label for="title" class="form-label fw-medium">Title <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" id="title" name="title"
+                   placeholder="e.g. Choose database architecture" autofocus required>
+            <div class="form-text">A short name for this decision.</div>
+          </div>
+          <div class="mb-4">
+            <label for="description" class="form-label fw-medium">Context <span class="text-muted small">(optional)</span></label>
+            <textarea class="form-control" id="description" name="description" rows="3"
+                      placeholder="Background, constraints, who's involved…"></textarea>
+          </div>
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary">Create &rarr;</button>
+            <a href="{{ url_for('cynefin_list') }}" class="btn btn-outline-secondary">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="card mt-3 border-0 bg-light">
+      <div class="card-body small text-muted">
+        <strong>What happens next:</strong> After creating your decision you'll answer 7 diagnostic questions
+        to classify it into a Cynefin domain (Clear, Complicated, Complex, or Chaotic).
+        The tool will then surface domain-appropriate response strategies.
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

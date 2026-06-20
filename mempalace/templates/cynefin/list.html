@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Cynefin Decisions{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h4 class="mb-0"><span class="badge bg-primary me-2">Cynefin</span>Decisions</h4>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('cynefin_import') }}" class="btn btn-sm btn-outline-secondary">Import JSON</a>
+    <a href="{{ url_for('cynefin_new') }}"    class="btn btn-sm btn-primary">+ New decision</a>
+  </div>
+</div>
+
+<div class="mb-3">
+  <div class="btn-group btn-group-sm" role="group">
+    <a href="{{ url_for('cynefin_list') }}"
+       class="btn btn-outline-secondary {% if not status_filter %}active{% endif %}">All</a>
+    {% for s in ['open','decided','closed'] %}
+    <a href="{{ url_for('cynefin_list', status=s) }}"
+       class="btn btn-outline-secondary {% if status_filter == s %}active{% endif %}">{{ s | title }}</a>
+    {% endfor %}
+  </div>
+</div>
+
+{% if decisions %}
+<div class="card">
+  <table class="table table-hover mb-0">
+    <thead class="table-light">
+      <tr>
+        <th>ID</th><th>Title</th><th>Domain</th><th>Status</th><th>Created</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for d in decisions %}
+    <tr>
+      <td><code class="small">{{ d.id }}</code></td>
+      <td>
+        <a href="{{ url_for('cynefin_show', decision_id=d.id) }}" class="text-decoration-none fw-medium">
+          {{ d.title }}
+        </a>
+        {% if d.description %}
+        <div class="text-muted small">{{ d.description | truncate(80) }}</div>
+        {% endif %}
+      </td>
+      <td>
+        {% if d.domain %}
+        <span class="badge domain-{{ d.domain }}">{{ d.domain | title }}</span>
+        {% else %}
+        <span class="text-muted small">unclassified</span>
+        {% endif %}
+      </td>
+      <td><span class="badge bg-secondary">{{ d.status }}</span></td>
+      <td class="text-muted small">{{ d.created_at[:10] }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="card">
+  <div class="card-body text-center text-muted py-5">
+    <p class="mb-2">No decisions found.</p>
+    <a href="{{ url_for('cynefin_new') }}" class="btn btn-primary">Create your first decision</a>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

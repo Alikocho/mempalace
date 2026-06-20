@@ -1,0 +1,588 @@
+{% extends "base.html" %}
+{% block title %}Results Dashboard{% endblock %}
+
+{% block content %}
+<style>
+  /* ── Print / PDF styles ───────────────────────────── */
+  @media print {
+    .no-print { display: none !important; }
+    .navbar   { display: none !important; }
+    footer    { display: none !important; }
+    body      { background: #fff !important; }
+    .card     { border: 1px solid #ccc !important; box-shadow: none !important; break-inside: avoid; }
+    .page-break { page-break-before: always; }
+    a         { color: inherit !important; text-decoration: none !important; }
+    .badge    { border: 1px solid #999; }
+  }
+
+  /* ── Domain colours ──────────────────────────────── */
+  .bar-clear       { background: #198754; }
+  .bar-complicated { background: #0d6efd; }
+  .bar-complex     { background: #fd7e14; }
+  .bar-chaotic     { background: #dc3545; }
+  .bar-disorder    { background: #6c757d; }
+
+  .dot-clear       { background: #198754; width:12px; height:12px; border-radius:50%; display:inline-block; }
+  .dot-complicated { background: #0d6efd; width:12px; height:12px; border-radius:50%; display:inline-block; }
+  .dot-complex     { background: #fd7e14; width:12px; height:12px; border-radius:50%; display:inline-block; }
+  .dot-chaotic     { background: #dc3545; width:12px; height:12px; border-radius:50%; display:inline-block; }
+  .dot-disorder    { background: #6c757d; width:12px; height:12px; border-radius:50%; display:inline-block; }
+
+  .section-title { border-left: 4px solid #0d6efd; padding-left: .6rem; margin-bottom: 1.2rem; }
+  .stat-box { text-align:center; padding: 1rem; border-radius: .5rem; background: #f8f9fa; border: 1px solid #e3e6ea; }
+  .stat-box .num { font-size: 2rem; font-weight: 700; line-height: 1; }
+  .stat-box .lbl { font-size: .75rem; color: #6c757d; margin-top: .25rem; }
+  .stat-box-sm .num { font-size: 1.4rem; }
+
+  .outcome-box { background: #f0f9f4; border: 1px solid #b7dfc7; border-radius: .4rem; padding: .6rem .9rem; }
+  .outcome-box.warning { background: #fffbea; border-color: #ffe082; }
+  .about-label { font-size: .7rem; text-transform: uppercase; letter-spacing: .05em; color: #6c757d; font-weight: 600; }
+</style>
+
+{# ── Header ───────────────────────────────────────── #}
+<div class="d-flex align-items-start justify-content-between mb-4">
+  <div>
+    <h2 class="mb-0">Results Dashboard</h2>
+    <small class="text-muted">Generated {{ generated_at }}</small>
+  </div>
+  <button class="btn btn-outline-secondary no-print" onclick="window.print()">
+    &#128438; Save as PDF
+  </button>
+</div>
+
+{# ── Summary strip ────────────────────────────────── #}
+<div class="row g-3 mb-5">
+  <div class="col-6 col-md-2">
+    <div class="stat-box">
+      <div class="num">{{ total_decisions }}</div>
+      <div class="lbl">Cynefin</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="stat-box">
+      <div class="num">{{ total_sessions }}</div>
+      <div class="lbl">Delphi</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="stat-box">
+      <div class="num">{{ pm_sessions | length }}</div>
+      <div class="lbl">Pre-Mortems</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="stat-box">
+      <div class="num">{{ mx_sessions | length }}</div>
+      <div class="lbl">Matrices</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="stat-box">
+      <div class="num">{{ sh_sessions | length }}</div>
+      <div class="lbl">6 Hats</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="stat-box">
+      <div class="num">{{ consensus_count }}</div>
+      <div class="lbl">Consensus</div>
+    </div>
+  </div>
+</div>
+
+{# ══════════════════════════════════════════════════════
+   CYNEFIN
+══════════════════════════════════════════════════════ #}
+<h4 class="section-title">Cynefin Decisions</h4>
+
+{# Domain distribution bars #}
+{% set total = total_decisions if total_decisions > 0 else 1 %}
+<div class="card mb-4">
+  <div class="card-header fw-semibold">Domain Distribution</div>
+  <div class="card-body">
+    {% for domain, count in domain_counts.items() %}
+    {% if count > 0 %}
+    <div class="mb-2">
+      <div class="d-flex justify-content-between mb-1">
+        <span class="d-flex align-items-center gap-2">
+          <span class="dot-{{ domain }}"></span>
+          <strong>{{ domain | title }}</strong>
+          {% if domain != 'disorder' and domain_info.get(domain) %}
+            <small class="text-muted d-none d-md-inline">— {{ domain_info[domain].sense_act }}</small>
+          {% endif %}
+        </span>
+        <span class="badge bg-secondary">{{ count }}</span>
+      </div>
+      <div style="height:10px; background:#e9ecef; border-radius:5px;">
+        <div class="bar-{{ domain }}" style="height:10px; border-radius:5px; width:{{ ((count / total) * 100) | round(1) }}%"></div>
+      </div>
+    </div>
+    {% endif %}
+    {% endfor %}
+    {% if total_decisions == 0 %}
+    <p class="text-muted mb-0">No decisions yet.</p>
+    {% endif %}
+  </div>
+</div>
+
+{# Cynefin status summary #}
+<div class="row g-3 mb-4">
+  {% for st, label in [("open","Open"), ("decided","Decided"), ("deferred","Deferred")] %}
+  <div class="col-4">
+    <div class="stat-box">
+      <div class="num">{{ status_counts[st] }}</div>
+      <div class="lbl">{{ label }}</div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+{# Decision cards #}
+{% if decisions %}
+<div class="mb-5">
+  {% for item in decisions %}
+  {% set d = item.decision %}
+  <div class="card mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <span class="fw-semibold">{{ d.title }}</span>
+      <div class="d-flex gap-2">
+        {% if d.domain %}
+        <span class="badge domain-{{ d.domain }}">{{ d.domain | title }}</span>
+        {% else %}
+        <span class="badge bg-secondary">Unclassified</span>
+        {% endif %}
+        <span class="badge bg-light text-dark border">{{ d.status | title }}</span>
+      </div>
+    </div>
+    <div class="card-body">
+
+      {% if d.description %}
+      <div class="mb-3">
+        <div class="about-label mb-1">About this decision</div>
+        <p class="mb-0 small">{{ d.description }}</p>
+      </div>
+      {% endif %}
+
+      <div class="mb-3">
+        <div class="about-label mb-1">Classification &amp; approach</div>
+        {% if d.domain and domain_info.get(d.domain) %}
+        <div class="outcome-box {% if d.status not in ('decided','closed') %}warning{% endif %}">
+          <strong>{{ d.domain | title }}</strong> &mdash; {{ domain_info[d.domain].sense_act }}<br>
+          <span class="small text-muted">{{ domain_info[d.domain].description }}</span>
+        </div>
+        {% else %}
+        <span class="text-muted small">Not yet classified.</span>
+        {% endif %}
+      </div>
+
+      {% if item.actions %}
+      <div class="about-label mb-1">Actions &amp; outcomes</div>
+      <ul class="mb-2 small mt-1">
+        {% for a in item.actions %}
+        <li class="{% if a.resolved_at %}text-muted{% endif %}">
+          {{ a.action_text }}
+          {% if a.resolved_at %}
+            <span class="badge bg-success ms-1">Done</span>
+            {% if a.outcome %}<span class="text-muted"> — {{ a.outcome }}</span>{% endif %}
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+
+      <div class="small text-muted">
+        Created {{ d.created_at[:10] }}
+        {% if item.pending_actions > 0 %}
+        &middot; <span class="text-warning fw-semibold">{{ item.pending_actions }} action{{ 's' if item.pending_actions != 1 }} pending</span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<p class="text-muted mb-5">No decisions recorded yet.</p>
+{% endif %}
+
+{# ══════════════════════════════════════════════════════
+   DELPHI
+══════════════════════════════════════════════════════ #}
+<div class="page-break"></div>
+<h4 class="section-title">Delphi Sessions</h4>
+
+{# Delphi status summary #}
+{% if sessions %}
+<div class="row g-3 mb-4">
+  {% set open_count   = sessions | selectattr('session.status', 'equalto', 'open')   | list | length %}
+  {% set closed_count = sessions | selectattr('session.status', 'equalto', 'closed') | list | length %}
+  <div class="col-4"><div class="stat-box"><div class="num">{{ open_count }}</div><div class="lbl">Open</div></div></div>
+  <div class="col-4"><div class="stat-box"><div class="num">{{ closed_count }}</div><div class="lbl">Closed</div></div></div>
+  <div class="col-4"><div class="stat-box"><div class="num">{{ consensus_count }}</div><div class="lbl">Consensus</div></div></div>
+</div>
+{% endif %}
+
+{% if sessions %}
+{% for item in sessions %}
+{% set s = item.session %}
+{% set summary = item.summary %}
+<div class="card mb-4">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span class="fw-semibold">{{ s.title }}</span>
+    <div class="d-flex gap-2">
+      {% if summary.all_consensus %}
+      <span class="badge bg-success">Consensus Reached</span>
+      {% elif item.closed_rounds > 0 %}
+      <span class="badge bg-warning text-dark">No Consensus</span>
+      {% else %}
+      <span class="badge bg-secondary">In Progress</span>
+      {% endif %}
+      <span class="badge bg-light text-dark border">{{ s.status | title }}</span>
+    </div>
+  </div>
+  <div class="card-body">
+
+    <div class="mb-3">
+      <div class="about-label mb-1">Question under deliberation</div>
+      <p class="mb-0 small fw-medium">{{ s.question }}</p>
+    </div>
+
+    <div class="mb-3">
+      <div class="about-label mb-1">Outcome</div>
+      {% if summary.all_consensus %}
+      <div class="outcome-box">
+        <strong>&#10003; Consensus reached</strong> across all items after {{ item.closed_rounds }} round{{ 's' if item.closed_rounds != 1 }}.
+      </div>
+      {% elif item.closed_rounds > 0 %}
+      <div class="outcome-box warning">
+        <strong>No full consensus</strong> after {{ item.closed_rounds }} round{{ 's' if item.closed_rounds != 1 }}.
+        {% if summary.item_stats %}
+          {{ summary.item_stats | selectattr('consensus') | list | length }}/{{ summary.item_stats | length }} items reached consensus.
+        {% endif %}
+      </div>
+      {% else %}
+      <span class="text-muted small">No rounds closed yet.</span>
+      {% endif %}
+    </div>
+
+    <div class="row g-2 mb-3">
+      <div class="col-4">
+        <div class="stat-box py-2 stat-box-sm">
+          <div class="num">{{ item.rounds | length }}</div>
+          <div class="lbl">Rounds</div>
+        </div>
+      </div>
+      <div class="col-4">
+        <div class="stat-box py-2 stat-box-sm">
+          <div class="num">{{ item.closed_rounds }}</div>
+          <div class="lbl">Closed</div>
+        </div>
+      </div>
+      <div class="col-4">
+        <div class="stat-box py-2 stat-box-sm">
+          <div class="num">{{ summary.item_stats | length }}</div>
+          <div class="lbl">Items</div>
+        </div>
+      </div>
+    </div>
+
+    {% if summary.item_stats %}
+    <div class="about-label mb-1">Item ratings (Round {{ summary.as_of_round }})</div>
+    <table class="table table-sm table-bordered mt-1 small">
+      <thead class="table-light">
+        <tr>
+          <th>Item</th>
+          <th class="text-center">Median</th>
+          <th class="text-center">IQR</th>
+          <th class="text-center">Responses</th>
+          <th class="text-center">Consensus</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for stat in summary.item_stats | sort(attribute='median', reverse=True) %}
+        <tr>
+          <td>{{ stat.text }}</td>
+          <td class="text-center fw-semibold">{{ stat.median }}</td>
+          <td class="text-center">{{ stat.iqr }}</td>
+          <td class="text-center">{{ stat.n }}</td>
+          <td class="text-center">
+            {% if stat.consensus %}
+            <span class="consensus-yes">&#10003; Yes</span>
+            {% else %}
+            <span class="consensus-no">&#10005; No</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+
+    <div class="mt-2 small text-muted">Created {{ s.created_at[:10] }}</div>
+  </div>
+</div>
+{% endfor %}
+{% else %}
+<p class="text-muted">No Delphi sessions recorded yet.</p>
+{% endif %}
+
+{# ══════════════════════════════════════════════════════
+   PRE-MORTEM
+══════════════════════════════════════════════════════ #}
+<div class="page-break"></div>
+<h4 class="section-title mt-4">Pre-Mortem Sessions</h4>
+
+{# Pre-Mortem status summary #}
+{% if pm_sessions %}
+<div class="row g-3 mb-4">
+  {% set pm_setup       = pm_sessions | selectattr('session.status', 'equalto', 'setup')        | list | length %}
+  {% set pm_brainstorm  = pm_sessions | selectattr('session.status', 'equalto', 'brainstorming') | list | length %}
+  {% set pm_reviewing   = pm_sessions | selectattr('session.status', 'equalto', 'reviewing')     | list | length %}
+  {% set pm_complete    = pm_sessions | selectattr('session.status', 'equalto', 'complete')      | list | length %}
+  <div class="col-3"><div class="stat-box"><div class="num">{{ pm_setup }}</div><div class="lbl">Setup</div></div></div>
+  <div class="col-3"><div class="stat-box"><div class="num">{{ pm_brainstorm }}</div><div class="lbl">Brainstorming</div></div></div>
+  <div class="col-3"><div class="stat-box"><div class="num">{{ pm_reviewing }}</div><div class="lbl">Reviewing</div></div></div>
+  <div class="col-3"><div class="stat-box"><div class="num">{{ pm_complete }}</div><div class="lbl">Complete</div></div></div>
+</div>
+{% endif %}
+
+{% if pm_sessions %}
+{% for item in pm_sessions %}
+{% set s = item.session %}
+<div class="card mb-4">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span class="fw-semibold">{{ s.title }}</span>
+    <div class="d-flex gap-2">
+      <span class="badge bg-secondary">{{ item.scenario_count }} scenario{{ 's' if item.scenario_count != 1 }}</span>
+      <span class="badge {% if s.status == 'complete' %}bg-success{% elif s.status == 'brainstorming' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+        {{ s.status | title }}
+      </span>
+    </div>
+  </div>
+  <div class="card-body">
+
+    {% if s.description or s.plan_text %}
+    <div class="mb-3">
+      {% if s.description %}
+      <div class="about-label mb-1">About this session</div>
+      <p class="small mb-2">{{ s.description }}</p>
+      {% endif %}
+      {% if s.plan_text %}
+      <div class="about-label mb-1">Plan under review</div>
+      <p class="small mb-0 fst-italic text-muted">{{ s.plan_text }}</p>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <div class="about-label mb-1">Key risks identified</div>
+    {% if item.risks %}
+    <table class="table table-sm table-bordered mt-1 small">
+      <thead class="table-light">
+        <tr>
+          <th>Risk</th>
+          <th class="text-center">Severity</th>
+          <th class="text-center">Likelihood</th>
+          <th>Mitigation</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in item.risks | sort(attribute='severity', reverse=True) %}
+        <tr>
+          <td>
+            {{ r.risk_title }}
+            {% if r.scenario_title %}
+            <div class="text-muted" style="font-size:.75em">Scenario: {{ r.scenario_title }}</div>
+            {% endif %}
+          </td>
+          <td class="text-center">
+            <span class="badge {% if r.severity >= 4 %}bg-danger{% elif r.severity >= 3 %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+              {{ r.severity }}/5
+            </span>
+          </td>
+          <td class="text-center">
+            <span class="badge {% if r.likelihood >= 4 %}bg-danger{% elif r.likelihood >= 3 %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+              {{ r.likelihood }}/5
+            </span>
+          </td>
+          <td class="small text-muted">{{ r.mitigation if r.mitigation else '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="text-muted small mb-0">No risks recorded yet.</p>
+    {% endif %}
+
+    <div class="mt-2 small text-muted">Created {{ s.created_at[:10] }}</div>
+  </div>
+</div>
+{% endfor %}
+{% else %}
+<p class="text-muted">No Pre-Mortem sessions recorded yet.</p>
+{% endif %}
+
+{# ══════════════════════════════════════════════════════
+   DECISION MATRIX
+══════════════════════════════════════════════════════ #}
+<div class="page-break"></div>
+<h4 class="section-title mt-4">Decision Matrix Sessions</h4>
+
+{# Matrix status summary #}
+{% if mx_sessions %}
+<div class="row g-3 mb-4">
+  {% set mx_open    = mx_sessions | selectattr('session.status', 'equalto', 'open')    | list | length %}
+  {% set mx_scoring = mx_sessions | selectattr('session.status', 'equalto', 'scoring') | list | length %}
+  {% set mx_closed  = mx_sessions | selectattr('session.status', 'equalto', 'closed')  | list | length %}
+  <div class="col-4"><div class="stat-box"><div class="num">{{ mx_open }}</div><div class="lbl">Open</div></div></div>
+  <div class="col-4"><div class="stat-box"><div class="num">{{ mx_scoring }}</div><div class="lbl">Scoring</div></div></div>
+  <div class="col-4"><div class="stat-box"><div class="num">{{ mx_closed }}</div><div class="lbl">Closed</div></div></div>
+</div>
+{% endif %}
+
+{% if mx_sessions %}
+{% for item in mx_sessions %}
+{% set s = item.session %}
+<div class="card mb-4">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span class="fw-semibold">{{ s.title }}</span>
+    <div class="d-flex gap-2">
+      <span class="badge bg-secondary">{{ item.results | length }} option{{ 's' if item.results | length != 1 }}</span>
+      <span class="badge {% if s.status == 'closed' %}bg-success{% elif s.status == 'scoring' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+        {{ s.status | title }}
+      </span>
+    </div>
+  </div>
+  <div class="card-body">
+
+    {% if s.description %}
+    <div class="mb-3">
+      <div class="about-label mb-1">Decision to make</div>
+      <p class="mb-0 small">{{ s.description }}</p>
+    </div>
+    {% endif %}
+
+    {% if item.results %}
+    <div class="mb-3">
+      <div class="about-label mb-1">Recommended option</div>
+      <div class="outcome-box {% if s.status != 'closed' %}warning{% endif %}">
+        <strong>{{ item.results[0].option_text }}</strong>
+        <span class="text-muted small ms-2">weighted score: {{ item.results[0].weighted_avg }}</span>
+        {% if s.status != 'closed' %}<span class="badge bg-warning text-dark ms-2">scoring in progress</span>{% endif %}
+      </div>
+    </div>
+
+    <div class="about-label mb-1">Full ranking</div>
+    <table class="table table-sm table-bordered mt-1 small">
+      <thead class="table-light">
+        <tr>
+          <th>#</th>
+          <th>Option</th>
+          <th class="text-center">Weighted Score</th>
+          {% for c in item.criteria %}
+          <th class="text-center text-muted">{{ c.name }} (w={{ c.weight }})</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in item.results %}
+        <tr {% if loop.first %}class="table-success"{% endif %}>
+          <td class="fw-semibold">{{ loop.index }}</td>
+          <td>{{ r.option_text }}</td>
+          <td class="text-center fw-semibold">{{ r.weighted_avg }}</td>
+          {% for c in item.criteria %}
+          {% set vals = r.raw_scores.get(c.id, []) %}
+          <td class="text-center text-muted">{{ (vals | sum / vals | length) | round(1) if vals else '—' }}</td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="text-muted small mb-0">No scores recorded yet.</p>
+    {% endif %}
+
+    <div class="mt-2 small text-muted">Created {{ s.created_at[:10] }}</div>
+  </div>
+</div>
+{% endfor %}
+{% else %}
+<p class="text-muted">No Decision Matrix sessions recorded yet.</p>
+{% endif %}
+
+{# ══════════════════════════════════════════════════════
+   SIX THINKING HATS
+══════════════════════════════════════════════════════ #}
+<div class="page-break"></div>
+<h4 class="section-title mt-4">Six Thinking Hats Sessions</h4>
+
+{# Six Hats status summary #}
+{% if sh_sessions %}
+<div class="row g-3 mb-4">
+  {% set sh_pending  = sh_sessions | selectattr('session.status', 'equalto', 'pending')  | list | length %}
+  {% set sh_active   = sh_sessions | selectattr('session.status', 'equalto', 'active')   | list | length %}
+  {% set sh_complete = sh_sessions | selectattr('session.status', 'equalto', 'complete') | list | length %}
+  <div class="col-4"><div class="stat-box"><div class="num">{{ sh_pending }}</div><div class="lbl">Pending</div></div></div>
+  <div class="col-4"><div class="stat-box"><div class="num">{{ sh_active }}</div><div class="lbl">Active</div></div></div>
+  <div class="col-4"><div class="stat-box"><div class="num">{{ sh_complete }}</div><div class="lbl">Complete</div></div></div>
+</div>
+{% endif %}
+
+{% if sh_sessions %}
+{% for item in sh_sessions %}
+{% set s = item.session %}
+<div class="card mb-4">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span class="fw-semibold">{{ s.title }}</span>
+    <div class="d-flex gap-2">
+      <span class="badge bg-secondary">{{ item.contribution_count }} contribution{{ 's' if item.contribution_count != 1 }}</span>
+      <span class="badge {% if s.status == 'complete' %}bg-success{% elif s.status == 'active' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+        {{ s.status | title }}
+      </span>
+    </div>
+  </div>
+  <div class="card-body">
+
+    {% if s.description %}
+    <div class="mb-3">
+      <div class="about-label mb-1">Topic under discussion</div>
+      <p class="mb-0 small">{{ s.description }}</p>
+    </div>
+    {% endif %}
+
+    <div class="about-label mb-1">Contributions by hat</div>
+    {% if item.hats %}
+    {% set has_any = [] %}
+    {% for hat in item.hats %}{% if hat.contributions %}{% set _ = has_any.append(1) %}{% endif %}{% endfor %}
+    {% if has_any %}
+    {% for hat in item.hats %}
+    {% if hat.contributions %}
+    <div class="mb-3">
+      <div class="d-flex align-items-center gap-2 mb-1">
+        <span class="badge" style="background:{{ {'white':'#6c757d','red':'#dc3545','black':'#212529','yellow':'#ffc107','green':'#198754','blue':'#0d6efd'}.get(hat.hat_name, '#6c757d') }}; color:{{ 'black' if hat.hat_name in ['white','yellow'] else 'white' }}">
+          {{ hat.hat_name | title }} Hat
+        </span>
+        <span class="text-muted small">{{ hat.contributions | length }} contribution{{ 's' if hat.contributions | length != 1 }}</span>
+      </div>
+      <ul class="mb-0 small ps-3">
+        {% for c in hat.contributions %}
+        <li class="mb-1">{{ c.content }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+    {% endfor %}
+    {% else %}
+    <p class="text-muted small mb-0">No contributions recorded yet.</p>
+    {% endif %}
+    {% else %}
+    <p class="text-muted small mb-0">No hat data available.</p>
+    {% endif %}
+
+    <div class="mt-2 small text-muted">Created {{ s.created_at[:10] }}</div>
+  </div>
+</div>
+{% endfor %}
+{% else %}
+<p class="text-muted">No Six Thinking Hats sessions recorded yet.</p>
+{% endif %}
+
+{% endblock %}

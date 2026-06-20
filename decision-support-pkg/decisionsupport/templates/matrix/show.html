@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+{% block title %}{{ session.title }}{% endblock %}
+{% block content %}
+
+<div class="d-flex align-items-center mb-3 gap-2 small text-muted">
+  <a href="{{ url_for('matrix_list') }}" class="text-muted text-decoration-none">&larr; Matrices</a>
+  <span>/</span><span>{{ session.id }}</span>
+</div>
+
+{% if session.status == 'scoring' %}
+<div class="alert alert-info d-flex align-items-center gap-3 py-2 mb-3 no-print">
+  <span class="small"><strong>Participant link:</strong>
+    <a href="{{ participate_url }}" target="_blank" class="font-monospace">{{ participate_url }}</a>
+  </span>
+  <button class="btn btn-sm btn-outline-secondary ms-auto"
+          onclick="navigator.clipboard.writeText('{{ participate_url }}'); this.textContent='Copied!'">
+    Copy
+  </button>
+</div>
+{% endif %}
+
+<div class="row g-4">
+
+  {# ---- Left column ---- #}
+  <div class="col-lg-8">
+
+    {# header card #}
+    <div class="card mb-4">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <h4 class="mb-1">{{ session.title }}</h4>
+            {% if session.description %}
+            <p class="text-muted mb-2">{{ session.description }}</p>
+            {% endif %}
+            <code class="small text-muted">{{ session.id }}</code>
+          </div>
+          <span class="badge {% if session.status == 'scoring' %}bg-warning text-dark{% elif session.status == 'closed' %}bg-success{% elif session.status == 'archived' %}bg-light text-dark border{% else %}bg-secondary{% endif %} fs-6">
+            {{ session.status }}
+          </span>
+        </div>
+        <div class="mt-3 d-flex gap-2 align-items-center flex-wrap">
+          <form method="post" action="{{ url_for('matrix_status', session_id=session.id) }}">
+            <select name="status" class="form-select form-select-sm d-inline-block w-auto" onchange="this.form.submit()">
+              {% for s in ['setup','scoring','closed'] %}
+              <option value="{{ s }}" {% if session.status == s %}selected{% endif %}>{{ s | title }}</option>
+              {% endfor %}
+            </select>
+          </form>
+          <button class="btn btn-sm btn-outline-secondary ms-auto"
+                  data-confirm-action="{{ url_for('matrix_archive', session_id=session.id) }}"
+                  data-confirm-title="Archive matrix?"
+                  data-confirm-body="This matrix will be hidden from the main list but all data is preserved."
+                  data-confirm-label="Archive"
+                  data-confirm-danger="false">Archive</button>
+          <button class="btn btn-sm btn-outline-danger"
+                  data-confirm-action="{{ url_for('matrix_delete', session_id=session.id) }}"
+                  data-confirm-title="Permanently delete?"
+                  data-confirm-body="This matrix and all options, criteria, and scores will be deleted. This cannot be undone."
+                  data-confirm-label="Delete permanently"
+                  data-confirm-danger="true">Delete</button>
+        </div>
+      </div>
+    </div>
+
+    {# options + criteria setup #}
+    {% if session.status in ['setup', 'scoring'] %}
+    <div class="row g-4 mb-4">
+      <div class="col-md-6">
+        <div class="card h-100">
+          <div class="card-header fw-medium">Options <span class="badge bg-light text-dark border ms-1">{{ options | length }}</span></div>
+          <div class="card-body">
+            {% if options %}
+            <ul class="list-group list-group-flush mb-3">
+              {% for o in options %}
+              <li class="list-group-item px-0 d-flex justify-content-between align-items-center">
+                <span class="small">{{ o.text }}</span>
+                <button class="btn btn-sm btn-outline-danger"
+                        data-confirm-action="{{ url_for('matrix_delete_option', session_id=session.id, option_id=o.id) }}"
+                        data-confirm-title="Remove option?"
+                        data-confirm-body="Removing '{{ o.text }}' will also delete its scores."
+                        data-confirm-label="Remove"
+                        data-confirm-danger="true">&#10005;</button>
+              </li>
+              {% endfor %}
+            </ul>
+            {% endif %}
+            <form method="post" action="{{ url_for('matrix_add_option', session_id=session.id) }}" class="row g-1">
+              <div class="col">
+                <input type="text" class="form-control form-control-sm" name="text" placeholder="Add an option…">
+              </div>
+              <div class="col-auto">
+                <button type="submit" class="btn btn-sm btn-outline-success">Add</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="card h-100">
+          <div class="card-header fw-medium">Criteria <span class="badge bg-light text-dark border ms-1">{{ criteria | length }}</span></div>
+          <div class="card-body">
+            {% if criteria %}
+            <ul class="list-group list-group-flush mb-3">
+              {% for c in criteria %}
+              <li class="list-group-item px-0">
+                <div class="d-flex justify-content-between align-items-center">
+                  <span class="small flex-grow-1">{{ c.text }}</span>
+                  <button class="btn btn-sm btn-outline-danger ms-2"
+                          data-confirm-action="{{ url_for('matrix_delete_criterion', session_id=session.id, criterion_id=c.id) }}"
+                          data-confirm-title="Remove criterion?"
+                          data-confirm-body="Removing '{{ c.text }}' will also delete its scores."
+                          data-confirm-label="Remove"
+                          data-confirm-danger="true">&#10005;</button>
+                </div>
+                <form method="post" action="{{ url_for('matrix_update_weight', session_id=session.id, criterion_id=c.id) }}"
+                      class="d-flex align-items-center gap-2 mt-1">
+                  <label class="form-label small mb-0 text-muted">Weight:</label>
+                  <select name="weight" class="form-select form-select-sm" style="width:80px" onchange="this.form.submit()">
+                    {% for w in range(weight_min, weight_max + 1) %}
+                    <option value="{{ w }}" {% if c.weight == w %}selected{% endif %}>{{ w }}</option>
+                    {% endfor %}
+                  </select>
+                </form>
+              </li>
+              {% endfor %}
+            </ul>
+            {% endif %}
+            <form method="post" action="{{ url_for('matrix_add_criterion', session_id=session.id) }}" class="row g-1">
+              <div class="col">
+                <input type="text" class="form-control form-control-sm" name="text" placeholder="Add a criterion…">
+              </div>
+              <div class="col-auto" style="width:70px">
+                <select name="weight" class="form-select form-select-sm">
+                  {% for w in range(weight_min, weight_max + 1) %}
+                  <option value="{{ w }}" {% if w == 1 %}selected{% endif %}>wt {{ w }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-auto">
+                <button type="submit" class="btn btn-sm btn-outline-success">Add</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    {# results #}
+    {% if results %}
+    <div class="card mb-4">
+      <div class="card-header fw-medium">Results (weighted average scores)</div>
+      <div class="card-body">
+        {% set top_score = results[0].weighted_avg if results else 1 %}
+        {% for r in results %}
+        <div class="mb-3">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <span class="fw-medium {% if loop.index == 1 %}text-success{% endif %}">
+              {% if loop.index == 1 %}&#9733; {% endif %}{{ r.option_text }}
+            </span>
+            <span class="badge bg-light text-dark border">{{ r.weighted_avg }} / {{ score_max }}</span>
+          </div>
+          <div class="score-track">
+            <div class="score-fill {% if loop.index == 1 %}bg-success{% endif %}"
+                 style="width:{{ ((r.weighted_avg / score_max) * 100) | int }}%;background:{% if loop.index == 1 %}#198754{% else %}#0d6efd{% endif %}"></div>
+          </div>
+          {% if criteria %}
+          <div class="mt-1 d-flex flex-wrap gap-2">
+            {% for c in criteria %}
+            {% set vals = r.raw_scores.get(c.id, []) %}
+            {% if vals %}
+            <span class="text-muted small">
+              {{ c.text | truncate(25) }}:
+              <strong>{{ (vals | sum / vals | length) | round(1) }}</strong>
+            </span>
+            {% endif %}
+            {% endfor %}
+          </div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% elif options and criteria %}
+    <div class="card mb-4">
+      <div class="card-body text-muted small">
+        No scores yet. Open scoring and share the participant link.
+      </div>
+    </div>
+    {% endif %}
+
+  </div>{# end col-lg-8 #}
+
+  {# ---- Right: how it works + summary ---- #}
+  <div class="col-lg-4">
+    <div class="card mb-4">
+      <div class="card-header fw-medium">How it works</div>
+      <div class="card-body small text-muted">
+        <ol class="ps-3 mb-0">
+          <li class="mb-2"><strong>Setup:</strong> Add the options being compared and the criteria they&rsquo;ll be judged on. Set weights (1&ndash;{{ weight_max }}) to reflect how important each criterion is.</li>
+          <li class="mb-2"><strong>Scoring:</strong> Set status to &ldquo;Scoring&rdquo; and share the participant link. Participants score each option against each criterion (1&ndash;{{ score_max }}). Weights are hidden from participants.</li>
+          <li class="mb-2"><strong>Review:</strong> Weighted average scores are calculated automatically. The top-scoring option is the recommendation.</li>
+          <li><strong>Close:</strong> Set status to &ldquo;Closed&rdquo; to lock the results for reporting.</li>
+        </ol>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header fw-medium">Summary</div>
+      <div class="card-body small">
+        <div class="mb-2"><strong>{{ options | length }}</strong> options</div>
+        <div class="mb-2"><strong>{{ criteria | length }}</strong> criteria</div>
+        <div class="mb-3"><strong>{{ scores | length }}</strong> scores collected</div>
+        {% if criteria %}
+        <div class="text-muted mb-1">Criteria weights:</div>
+        <ul class="list-unstyled mb-0">
+          {% for c in criteria %}
+          <li>{{ c.text | truncate(30) }} <span class="badge bg-light text-dark border ms-1">{{ c.weight }}</span></li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
